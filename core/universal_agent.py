@@ -110,6 +110,22 @@ class UniversalAgent:
             except Exception:
                 pass
 
+        # ── Antigravity IDE ──
+        if target_lower in ["antigravity", "antigravity ide", "agy"]:
+            ag_paths = [
+                os.path.expandvars(r"%LOCALAPPDATA%\Programs\Antigravity IDE\Antigravity IDE.exe"),
+                r"C:\Users\Admin\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe",
+            ]
+            for p in ag_paths:
+                if os.path.exists(p):
+                    subprocess.Popen([p])
+                    return
+            try:
+                subprocess.Popen("antigravity", shell=True)
+                return
+            except Exception:
+                pass
+
         # ── Notepad ──
         if target_lower in ["notepad", "notepad.exe"]:
             try:
@@ -500,6 +516,14 @@ class UniversalAgent:
             self._start_process("calc")
             return {"success": True, "action": "open_app",
                     "reply": "ক্যালকুলেটর চালু হচ্ছে।", "details": "Opened Calculator"}
+
+        # ────── Antigravity IDE ──────
+        ag_bn = ["অ্যান্টিগ্র্যাভিটি", "অ্যান্টি গ্র্যাভিটি", "এন্টিগ্র্যাভিটি", "এন্টি গ্রাভিটি", "এন্টিগ্রাভিটি"]
+        ag_en = ["antigravity", "antigravity ide", "agy"]
+        if any(w in low for w in ag_bn + ag_en):
+            self._start_process("antigravity")
+            return {"success": True, "action": "open_app",
+                    "reply": "অ্যান্টিগ্র্যাভিটি আইডিই চালু হচ্ছে।", "details": "Opened Antigravity IDE"}
 
         # ────── নোটপ্যাড ──────
         np_bn = ["নোটপ্যাড", "নোট প্যাড", "নোটপ্যাড খোলো"]
