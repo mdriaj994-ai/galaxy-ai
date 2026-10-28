@@ -104,15 +104,20 @@ class UniversalAgent:
             except Exception:
                 pass
 
-        # ── Calculator ── (calc: URI কাজ করে না, সরাসরি exe চালাও)
+        # ── Calculator ──
         if target_lower in ["calc", "calc.exe", "calculator"]:
             try:
-                subprocess.Popen(["calc.exe"])
+                os.startfile("calc:")
                 return
             except Exception:
                 pass
             try:
-                subprocess.Popen("calc.exe", shell=True)
+                subprocess.Popen("start calc:", shell=True)
+                return
+            except Exception:
+                pass
+            try:
+                subprocess.Popen(["calc.exe"])
                 return
             except Exception:
                 pass
@@ -125,8 +130,12 @@ class UniversalAgent:
             ]
             for p in ag_paths:
                 if os.path.exists(p):
-                    subprocess.Popen([p])
-                    return
+                    try:
+                        os.startfile(p)
+                        return
+                    except Exception:
+                        subprocess.Popen([p])
+                        return
             try:
                 subprocess.Popen("antigravity", shell=True)
                 return
@@ -136,13 +145,15 @@ class UniversalAgent:
         # ── Notepad ──
         if target_lower in ["notepad", "notepad.exe"]:
             try:
-                subprocess.Popen(["notepad.exe"])
+                os.startfile("notepad.exe")
                 return
             except Exception:
                 pass
             try:
-                subprocess.Popen("notepad.exe", shell=True)
+                subprocess.Popen("start notepad", shell=True)
                 return
+            except Exception:
+                pass
             except Exception:
                 pass
 
@@ -178,7 +189,21 @@ class UniversalAgent:
             pass
 
     def _open_url(self, url: str):
-        # 1. Chrome সরাসরি কল করা (উইন্ডোজে সবচেয়ে নির্ভরযোগ্য)
+        # 1. Windows ShellExecute via os.startfile (সবচেয়ে নির্ভরযোগ্য)
+        try:
+            os.startfile(url)
+            return
+        except Exception:
+            pass
+
+        # 2. Windows shell start
+        try:
+            subprocess.Popen(f'start "" "{url}"', shell=True)
+            return
+        except Exception:
+            pass
+
+        # 3. Chrome / Edge সরাসরি কল
         chrome_paths = [
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
@@ -193,20 +218,6 @@ class UniversalAgent:
                     return
                 except Exception:
                     pass
-
-        # 2. Windows shell start
-        try:
-            subprocess.Popen(f'start "" "{url}"', shell=True)
-            return
-        except Exception:
-            pass
-
-        # 3. os.startfile / webbrowser fallback
-        try:
-            os.startfile(url)
-            return
-        except Exception:
-            pass
 
         try:
             webbrowser.open(url)

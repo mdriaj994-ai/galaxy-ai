@@ -147,6 +147,22 @@ document.addEventListener('DOMContentLoaded', () => {
         isListening = false;
     }
 
+    function displayReplyWithUrl(replyText, url) {
+        if (replyText) {
+            jarvisOutput.textContent = replyText;
+            playBengaliAudio(replyText);
+            addLog('JARVIS', replyText);
+        }
+        if (url) {
+            try { window.open(url, '_blank'); } catch(e){}
+            jarvisOutput.innerHTML = `<div>${replyText || ''}</div>
+                <div style="margin-top:14px;padding:12px 16px;background:rgba(0,210,255,0.12);border:1px solid #00d2ff;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <span style="color:#e0f7fa;font-size:14px;font-weight:500;">🌐 সাইটটি ব্রাউজারে খুলতে চাপুন:</span>
+                    <a href="${url}" target="_blank" style="display:inline-block;padding:8px 22px;background:#00d2ff;color:#0b111e;border-radius:20px;font-weight:bold;text-decoration:none;font-size:14px;box-shadow:0 0 14px rgba(0,210,255,0.5);">সরাসরি ওপেন করুন ↗</a>
+                </div>`;
+        }
+    }
+
     async function sendAudioBlobToBackend(audioBlob) {
         if (isExecuting) return;
         isExecuting = true;
@@ -172,21 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 liveSpeechText.textContent = data.reply || 'কথা শনাক্ত করা যায়নি।';
             }
 
-            if (data.reply) {
-                jarvisOutput.textContent = data.reply;
-                playBengaliAudio(data.reply);
-                addLog('JARVIS', data.reply);
-            }
-
-            if (data.url) {
-                try { window.open(data.url, '_blank'); } catch(e){}
-                jarvisOutput.innerHTML = (data.reply || '') + `<br><a href="${data.url}" target="_blank" style="display:inline-block;margin-top:10px;padding:6px 14px;background:#00d2ff;color:#000;border-radius:20px;font-weight:bold;text-decoration:none;">🌐 লিঙ্কে যেতে এখানে ক্লিক করুন</a>`;
-            }
-
-            if (data.url) {
-                try { window.open(data.url, '_blank'); } catch(e){}
-                jarvisOutput.innerHTML = (data.reply || '') + `<br><a href="${data.url}" target="_blank" style="display:inline-block;margin-top:10px;padding:6px 14px;background:#00d2ff;color:#000;border-radius:20px;font-weight:bold;text-decoration:none;">🌐 লিঙ্কে যেতে এখানে ক্লিক করুন</a>`;
-            }
+            displayReplyWithUrl(data.reply, data.url);
 
             if (data.details) addLog('ACTION', data.details);
 
@@ -232,16 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 liveSpeechText.textContent = data.reply || 'কোনো কথা পাওয়া যায়নি।';
             }
 
-            if (data.reply) {
-                jarvisOutput.textContent = data.reply;
-                playBengaliAudio(data.reply);
-                addLog('JARVIS', data.reply);
-            }
-
-            if (data.url) {
-                try { window.open(data.url, '_blank'); } catch(e){}
-                jarvisOutput.innerHTML = (data.reply || '') + `<br><a href="${data.url}" target="_blank" style="display:inline-block;margin-top:10px;padding:6px 14px;background:#00d2ff;color:#000;border-radius:20px;font-weight:bold;text-decoration:none;">🌐 লিঙ্কে যেতে এখানে ক্লিক করুন</a>`;
-            }
+            displayReplyWithUrl(data.reply, data.url);
 
             if (data.details) addLog('ACTION', data.details);
             setBadge('সম্পন্ন ✓', '');
@@ -389,17 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
 
-            const reply = data.reply || '';
-            if (reply) {
-                jarvisOutput.textContent = reply;
-                playBengaliAudio(reply);
-                addLog('JARVIS', reply);
-            }
-
-            if (data.url) {
-                try { window.open(data.url, '_blank'); } catch(e){}
-                jarvisOutput.innerHTML = (reply || '') + `<br><a href="${data.url}" target="_blank" style="display:inline-block;margin-top:10px;padding:6px 14px;background:#00d2ff;color:#000;border-radius:20px;font-weight:bold;text-decoration:none;">🌐 লিঙ্কে যেতে এখানে ক্লিক করুন</a>`;
-            }
+            displayReplyWithUrl(data.reply || '', data.url);
 
             if (data.details) addLog('ACTION', data.details);
 
