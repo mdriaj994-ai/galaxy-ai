@@ -32,10 +32,69 @@ class SpeechEngine:
 
     def _init_tts(self):
         """TTS ইঞ্জিন শুরু করো।"""
-        if self.settings.TTS_ENGINE == "pyttsx3":
+        if self.settings.TTS_ENGINE == "edge-tts":
+            try:
+                import edge_tts
+                import pygame
+                print("\033[92m  [✓] Microsoft Edge Neural TTS Engine সক্রিয় (বাস্তব পুরুষ কণ্ঠ)\033[0m")
+            except Exception as e:
+                print(f"\033[93m[!] Edge TTS লোড ত্রুটি: {e}\033[0m")
+        elif self.settings.TTS_ENGINE == "pyttsx3":
             self._init_pyttsx3()
         elif self.settings.TTS_ENGINE == "gtts":
             self._check_gtts()
+
+    def speak(self, text: str):
+        """টেক্সট পড়ে শোনাও।"""
+        if not text:
+            return
+        text = self._clean_text(text)
+        with self._tts_lock:
+            if self.settings.TTS_ENGINE == "edge-tts":
+                self._speak_edge_tts(text)
+            elif self.settings.TTS_ENGINE == "pyttsx3" and self.tts_engine:
+                self._speak_pyttsx3(text)
+            elif self.settings.TTS_ENGINE == "gtts":
+                self._speak_gtts(text)
+
+    def _speak_edge_tts(self, text: str):
+        """Microsoft Edge Neural Voice দিয়ে বাস্তবসম্মত পুরুষ কণ্ঠে স্পষ্ট বাংলায় কথা বলো।"""
+        try:
+            import asyncio
+            import edge_tts
+            import pygame
+            import tempfile
+
+            # Detect language
+            ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(len(text), 1)
+            if ascii_ratio > 0.8:
+                voice = getattr(self.settings, 'EDGE_TTS_VOICE_EN', 'en-US-ChristopherNeural')
+            else:
+                voice = getattr(self.settings, 'EDGE_TTS_VOICE_MALE', 'bn-BD-PradeepNeural')
+
+            async def _gen():
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp:
+                    tmp_p = tmp.name
+                comm = edge_tts.Communicate(text, voice)
+                await comm.save(tmp_p)
+                return tmp_p
+
+            tmp_path = asyncio.run(_gen())
+
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
+            pygame.mixer.music.load(tmp_path)
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                time.sleep(0.05)
+            pygame.mixer.music.stop()
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[Edge TTS Error, falling back to gTTS]: {e}", flush=True)
+            self._speak_gtts(text)
 
     def _init_pyttsx3(self):
         """pyttsx3 শুরু করো।"""

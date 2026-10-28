@@ -63,7 +63,10 @@ Support Bengali and English equally. Be proactive — if someone says "খোল
     # 🔊 ভয়েস আউটপুট সেটিংস (TTS)
     # ══════════════════════════════════════════
 
-    TTS_ENGINE = "gtts"           # "pyttsx3" অথবা "gtts"
+    TTS_ENGINE = "edge-tts"       # "edge-tts" (বাস্তবসম্মত মানুষের কণ্ঠ), "gtts", "pyttsx3"
+    EDGE_TTS_VOICE_MALE = "bn-BD-PradeepNeural"     # স্পষ্ট বাংলাদেশি পুরুষ কণ্ঠ
+    EDGE_TTS_VOICE_FEMALE = "bn-BD-NabanitaNeural"  # স্পষ্ট বাংলাদেশি নারী কণ্ঠ
+    EDGE_TTS_VOICE_EN = "en-US-ChristopherNeural"   # স্পষ্ট আমেরিকান পুরুষ কণ্ঠ
     TTS_RATE = 180
     TTS_VOLUME = 0.9
     TTS_VOICE_GENDER = "male"

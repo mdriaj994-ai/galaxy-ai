@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ── Bengali Audio Player ──
+    // ── Ultra-Realistic Human Neural Audio Player ──
     let activeAudio = null;
     function playBengaliAudio(text) {
         if (!text) return;
@@ -412,8 +412,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             activeAudio = new Audio('/api/tts?text=' + encodeURIComponent(text));
             activeAudio.volume = 1.0;
-            activeAudio.play().catch(() => {});
-        } catch(e) {}
+            const playPromise = activeAudio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('Neural Audio playing successfully');
+                }).catch(err => {
+                    console.warn('Audio play restricted by browser policy:', err);
+                });
+            }
+        } catch(e) {
+            console.error('TTS playback error:', e);
+        }
     }
 
     // ── Text Input Form ──

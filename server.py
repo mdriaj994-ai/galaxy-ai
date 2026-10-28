@@ -9,7 +9,7 @@ import threading
 import webbrowser
 import time
 from pathlib import Path
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 
 # Windows Terminal UTF-8 Encoding Fix
@@ -195,6 +195,44 @@ def voice_upload():
                     os.unlink(p)
                 except Exception:
                     pass
+
+
+@app.route("/api/tts")
+def api_tts():
+    """
+    Microsoft Edge Neural Speech (PradeepNeural) দিয়ে বাস্তবসম্মত পুরুষ কণ্ঠের
+    হাই-কোয়ালিটি MP3 অডিও তৈরি করে। এটি মোবাইল ও ব্রাউজারে পরিষ্কার শোনাবে।
+    """
+    text = request.args.get("text", "").strip()
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+
+    try:
+        import io
+        import asyncio
+        import edge_tts
+
+        ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(len(text), 1)
+        voice = getattr(settings, 'EDGE_TTS_VOICE_EN', 'en-US-ChristopherNeural') if ascii_ratio > 0.8 else getattr(settings, 'EDGE_TTS_VOICE_MALE', 'bn-BD-PradeepNeural')
+
+        async def _gen():
+            comm = edge_tts.Communicate(text, voice)
+            data = b""
+            async for chunk in comm.stream():
+                if chunk["type"] == "audio":
+                    data += chunk["data"]
+            return data
+
+        audio_bytes = asyncio.run(_gen())
+        return send_file(
+            io.BytesIO(audio_bytes),
+            mimetype="audio/mpeg",
+            as_attachment=False,
+            download_name="reply.mp3"
+        )
+    except Exception as e:
+        print(f"[API TTS Error]: {e}", flush=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/listen_mic", methods=["POST"])
