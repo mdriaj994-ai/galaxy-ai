@@ -564,9 +564,11 @@ class UniversalAgent:
                     "reply": "ক্যালকুলেটর চালু হচ্ছে।", "details": "Opened Calculator"}
 
         # ────── Antigravity IDE ──────
-        ag_bn = ["অ্যান্টিগ্র্যাভিটি", "অ্যান্টি গ্র্যাভিটি", "এন্টিগ্র্যাভিটি", "এন্টি গ্রাভিটি", "এন্টিগ্রাভিটি"]
+        ag_bn = ["অ্যান্টিগ্র্যাভিটি", "অ্যান্টি গ্র্যাভিটি", "এন্টিগ্র্যাভিটি", "এন্টি গ্রাভিটি", "এন্ট্রি গ্রাভিটি", "এন্ট্রি কাবাডি"]
         ag_en = ["antigravity", "antigravity ide", "agy"]
         if any(w in low for w in ag_bn + ag_en):
+            if any(w in low for w in ["চ্যাট", "লেখ", "পাঠাও", "টাইপ", "মেসেজ", "chat"]):
+                return self._handle_antigravity_action(raw, low)
             self._start_process("antigravity")
             return {"success": True, "action": "open_app",
                     "reply": "অ্যান্টিগ্র্যাভিটি আইডিই চালু হচ্ছে।", "details": "Opened Antigravity IDE"}
@@ -641,35 +643,56 @@ class UniversalAgent:
                         return {"success": True, "action": "open_drive",
                                 "reply": f"{name_bn} খোলা হচ্ছে।", "details": f"Opened {path}"}
 
+        # ────── Direct Login / Submit Click ──────
+        login_bn = ["লগইন করো", "লগ ইন করো", "লগইন এ ক্লিক করো", "লগইন বাটন", "সাইন ইন করো", "enter চাপো", "এন্টার চাপো", "লগইন"]
+        login_en = ["login now", "click login", "press enter", "submit login", "log in", "login"]
+        if any(w in low for w in login_bn + login_en):
+            try:
+                if pyautogui:
+                    pyautogui.press('enter')
+                    return {"success": True, "action": "press_enter",
+                            "reply": "লগইন বাটনে ক্লিক করে লগইন করা হচ্ছে।", "details": "Pressed Enter for login"}
+            except Exception:
+                pass
+
         # ────── Login number/phone input ──────
         phone_bn = ["আমার নম্বর", "নম্বর হলো", "নাম্বার হলো", "মোবাইল নম্বর",
-                    "ফোন নম্বর", "আমার ইমেইল", "ইউজার নেম"]
-        phone_en = ["my number is", "number is", "phone number", "email is", "username is"]
+                    "ফোন নম্বর", "আমার ইমেইল", "ইউজার নেম", "নাম্বার", "নম্বর"]
+        phone_en = ["my number is", "number is", "phone number", "email is", "username is", "number", "email"]
         if any(w in low for w in phone_bn + phone_en):
             import re
             numbers = re.findall(r'[\d\+\-\s]{7,}', raw)
             email_match = re.findall(r'[\w\.\-]+@[\w\.\-]+\.\w+', raw)
             val = email_match[0] if email_match else (''.join(numbers[0].split()) if numbers else raw)
+            for kw in phone_bn + phone_en:
+                if kw in low:
+                    val = raw[raw.lower().find(kw) + len(kw):].strip().strip(":=- ")
+                    break
             return self._type_in_active_field(val, "phone/email")
 
         # ────── Password input ──────
-        pass_bn = ["পাসওয়ার্ড হলো", "পাসওয়ার্ড হচ্ছে", "পাসওয়ার্ড দাও", "পাসওয়ার্ড টাইপ করো"]
-        pass_en = ["password is", "my password", "type password"]
+        pass_bn = ["পাসওয়ার্ড হলো", "পাসওয়ার্ড হচ্ছে", "পাসওয়ার্ড দাও", "পাসওয়ার্ড টাইপ করো", "পাসওয়ার্ড"]
+        pass_en = ["password is", "my password", "type password", "password"]
         if any(w in low for w in pass_bn + pass_en):
             import re
-            for kw in ["পাসওয়ার্ড হলো", "পাসওয়ার্ড হচ্ছে", "password is", "my password is"]:
+            for kw in ["পাসওয়ার্ড হলো", "পাসওয়ার্ড হচ্ছে", "পাসওয়ার্ড দাও", "পাসওয়ার্ড", "password is", "my password is", "password"]:
                 if kw in low:
-                    pwd = raw[raw.lower().find(kw) + len(kw):].strip()
-                    return self._type_password_and_login(pwd)
+                    pwd = raw[raw.lower().find(kw) + len(kw):].strip().strip(":=- ")
+                    if pwd:
+                        return self._type_password_and_login(pwd)
             return self._type_password_and_login(raw)
 
-        # ────── Antigravity / কোড ফাইল চেক ──────
-        ag_bn = ["এন্ট্রি গ্রাভিটি", "এন্টিগ্র্যাভিটি", "প্রজেক্ট ফাইল"]
-        ag_en = ["antigravity"]
-        if any(w in low for w in ag_bn + ag_en):
-            if any(w in low for w in ["অ্যাকাউন্ট", "account", "login", "লগইন"]):
-                return self._handle_antigravity_account()
-            return self._handle_antigravity_files()
+        # ────── গাণিতিক হিসাব ও ক্যালকুলেটরে লাইভ টাইপিং ──────
+        calc_triggers = ["হিসাব করো", "হিসাব", "calculate", "কত হয়", "কত হয়", "যোগ করো", "গুণ করো", "বিয়োগ করো", "ভাগ করো", "গুন করো"]
+        if any(w in low for w in calc_triggers) or (any(op in low for op in ["গুণ", "গুন", "প্লাস", "মাইনাস", "ডিভাইডেড"]) and any(c.isdigit() for c in raw)):
+            res = self._calculate_and_type_math(raw, low)
+            if res and res.get("success"):
+                return res
+
+        # ────── Antigravity IDE ও চ্যাট বক্স অটোমেশন ──────
+        ag_triggers = ["এন্ট্রি গ্রাভিটি", "এন্টিগ্র্যাভিটি", "অ্যান্টিগ্র্যাভিটি", "অ্যান্টি গ্র্যাভিটি", "এন্ট্রি কাবাডি", "antigravity", "agy"]
+        if any(w in low for w in ag_triggers) or any(w in low for w in ["চ্যাট বক্সে লেখ", "চ্যাটে লেখ", "চ্যাটবক্সে লেখ", "এন্টিগ্র্যাভিটিতে লেখ"]):
+            return self._handle_antigravity_action(raw, low)
 
         return None
 
@@ -1097,38 +1120,19 @@ Guidelines:
         import time
         try:
             if pyautogui:
-                # Email/phone field এ ক্লিক করো (Facebook এর email input)
-                # JavaScript inject করে field খুঁজবো
-                pyautogui.hotkey('ctrl', 'l')
-                time.sleep(0.2)
-                pyautogui.typewrite(
-                    "javascript:document.getElementById('email').focus();document.getElementById('email').value='';",
-                    interval=0.02
-                )
-                pyautogui.press('enter')
-                time.sleep(0.5)
-                # এখন value type করো
-                pyautogui.hotkey('ctrl', 'l')
-                time.sleep(0.2)
-                pyautogui.press('escape')
-                time.sleep(0.2)
-
-                # Better approach: Tab key দিয়ে field এ যাও
-                pyautogui.hotkey('ctrl', 'a')
-                time.sleep(0.1)
-
-                # Value type করো
                 import pyperclip
+                # Active field এ ভ্যালু পেস্ট করো
                 pyperclip.copy(value)
                 pyautogui.hotkey('ctrl', 'v')
                 time.sleep(0.3)
-                pyautogui.press('tab')  # Password field এ যাও
+                # Tab চেপে পাসওয়ার্ড ফিল্ডে যাও
+                pyautogui.press('tab')
 
                 return {
                     "success": True,
                     "action": "type_phone",
-                    "reply": f"নম্বর {value} টাইপ করা হয়েছে। এখন পাসওয়ার্ড বলুন — বলুন 'পাসওয়ার্ড হলো আপনার_পাসওয়ার্ড'",
-                    "details": f"Typed: {value}"
+                    "reply": f"নম্বর {value} বসানো হয়েছে। এখন পাসওয়ার্ড বলুন — যেমন 'পাসওয়ার্ড হলো আপনার_পাসওয়ার্ড'।",
+                    "details": f"Typed: {value} and tabbed"
                 }
         except Exception as e:
             pass
@@ -1136,12 +1140,12 @@ Guidelines:
         return {
             "success": False,
             "action": "type_phone",
-            "reply": "pyautogui দরকার। pip install pyautogui pyperclip",
-            "details": "pyautogui not available"
+            "reply": "টাইপ করতে সমস্যা হয়েছে।",
+            "details": "pyautogui error"
         }
 
     def _type_password_and_login(self, password: str) -> dict:
-        """Password টাইপ করে Login click করো।"""
+        """Password টাইপ করো।"""
         import time
         try:
             if pyautogui:
@@ -1149,23 +1153,131 @@ Guidelines:
                 pyperclip.copy(password)
                 pyautogui.hotkey('ctrl', 'v')
                 time.sleep(0.3)
-                pyautogui.press('enter')  # Login!
-                time.sleep(0.5)
 
                 return {
                     "success": True,
                     "action": "facebook_login",
-                    "reply": "পাসওয়ার্ড দেওয়া হয়েছে এবং লগইন করা হচ্ছে!",
-                    "details": f"Password entered and Enter pressed"
+                    "reply": "পাসওয়ার্ড বসানো হয়েছে। লগইন করতে 'লগইন করো' বলুন অথবা এন্টার চাপুন।",
+                    "details": "Password entered"
                 }
-        except Exception as e:
+        except Exception:
             pass
 
         return {
             "success": False,
             "action": "facebook_login",
-            "reply": "লগইন করতে সমস্যা হচ্ছে।",
-            "details": "Error"
+            "reply": "পাসওয়ার্ড টাইপ করতে সমস্যা হয়েছে।",
+            "details": "pyautogui error"
+        }
+
+    def _calculate_and_type_math(self, raw: str, low: str) -> dict:
+        """গাণিতিক হিসাব সমাধান করে এবং ক্যালকুলেটর বা স্ক্রিনে লাইভ টাইপ করে।"""
+        import re
+        import time
+        bn_digits = {'০':'0', '১':'1', '২':'2', '৩':'3', '৪':'4', '৫':'5', '৬':'6', '৭':'7', '৮':'8', '৯':'9'}
+        clean = raw
+        for bn, en in bn_digits.items():
+            clean = clean.replace(bn, en)
+
+        replacements = [
+            ("হিসাব করো", ""), ("হিসাব", ""), ("calculate", ""), ("কত হয়", ""), ("কত হয়", ""),
+            ("গুণন", "*"), ("গুণ", "*"), ("গুন", "*"), ("ইনটু", "*"), ("times", "*"), ("into", "*"), ("x", "*"),
+            ("প্লাস", "+"), ("যোগ", "+"), ("plus", "+"),
+            ("বিয়োগ", "-"), ("মাইনাস", "-"), ("minus", "-"),
+            ("ভাগ", "/"), ("ডিভাইডেড", "/"), ("divided by", "/"), ("divided", "/")
+        ]
+        expr = clean.lower()
+        for w, r in replacements:
+            expr = expr.replace(w, r)
+
+        # শুধু গাণিতিক চিহ্ন রাখুন
+        math_chars = re.findall(r'[\d\+\-\*\/\.\(\)\s]+', expr)
+        math_expr = ''.join(math_chars).strip()
+
+        if not math_expr or not any(c.isdigit() for c in math_expr):
+            return {"success": False, "reply": "সঠিক সংখ্যা বুঝতে পারিনি।"}
+
+        try:
+            val = eval(math_expr, {"__builtins__": None}, {})
+            if isinstance(val, float) and val.is_integer():
+                val = int(val)
+
+            # স্ক্রিনে বা ক্যালকুলেটরে লাইভ টাইপিং
+            if pyautogui:
+                time.sleep(0.3)
+                for char in math_expr:
+                    pyautogui.press(char if char in "0123456789+-*/." else "space")
+                    time.sleep(0.04)
+                pyautogui.press('enter')
+
+            return {
+                "success": True,
+                "action": "calculate",
+                "reply": f"হিসাব সম্পন্ন হয়েছে। {math_expr} এর উত্তর হলো {val}।",
+                "details": f"{math_expr} = {val}"
+            }
+        except Exception as e:
+            return {"success": False, "reply": f"হিসাব করতে ত্রুটি: {e}"}
+
+    def _handle_antigravity_action(self, raw: str, low: str) -> dict:
+        """Antigravity IDE সামনে আনে এবং চ্যাট বক্সে মেসেজ লিখে পাঠায়।"""
+        import time
+        # Antigravity IDE সামনে আনো
+        ag_paths = [
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Antigravity IDE\Antigravity IDE.exe"),
+            r"C:\Users\Admin\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe",
+        ]
+        for p in ag_paths:
+            if os.path.exists(p):
+                try:
+                    os.startfile(p)
+                    break
+                except Exception:
+                    pass
+
+        time.sleep(1.0)
+
+        # চ্যাটে লেখার কোনো টেক্সট আছে কিনা দেখো
+        msg = ""
+        for trig in ["চ্যাট বক্সে লেখো", "চ্যাট বক্সে লেখ", "চ্যাটে লেখো", "চ্যাটে লেখ", "চ্যাটবক্সে লেখো", "চ্যাটবক্সে লেখ", "এন্টিগ্র্যাভিটিতে লেখো", "এন্টিগ্র্যাভিটিতে লেখ", "লেখো", "লেখ"]:
+            if trig in low:
+                idx = low.find(trig) + len(trig)
+                msg = raw[idx:].strip().strip(":=- ")
+                msg = msg.lstrip("ো ").strip()
+                for send_w in ["এবং পাঠাও", "পাঠাও", "সেন্ড করো", "send koro", "পাঠিয়ে দাও"]:
+                    if send_w in msg.lower():
+                        msg = msg[:msg.lower().find(send_w)].strip()
+                break
+
+        if msg and pyautogui:
+            import pyperclip
+            # Ctrl + L দিয়ে Antigravity AI চ্যাট বক্স ফোকাস করো
+            pyautogui.hotkey('ctrl', 'l')
+            time.sleep(0.5)
+            pyperclip.copy(msg)
+            pyautogui.hotkey('ctrl', 'v')
+            time.sleep(0.3)
+            if any(w in low for w in ["পাঠাও", "সেন্ড", "send", "পাঠিয়ে দাও"]):
+                pyautogui.press('enter')
+                return {
+                    "success": True,
+                    "action": "antigravity_chat",
+                    "reply": f"অ্যান্টিগ্র্যাভিটি চ্যাটে লিখে পাঠানো হয়েছে: {msg}",
+                    "details": f"Sent to Antigravity: {msg}"
+                }
+            else:
+                return {
+                    "success": True,
+                    "action": "antigravity_chat",
+                    "reply": f"অ্যান্টিগ্র্যাভিটি চ্যাটে লেখা হয়েছে: {msg}",
+                    "details": f"Typed into Antigravity: {msg}"
+                }
+
+        return {
+            "success": True,
+            "action": "antigravity_open",
+            "reply": "অ্যান্টিগ্র্যাভিটি উইন্ডো আপনার সামনে সক্রিয় করা হয়েছে।",
+            "details": "Activated Antigravity IDE"
         }
 
     def _selenium_facebook_login(self, phone: str, password: str) -> dict:

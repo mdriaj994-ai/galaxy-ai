@@ -21,11 +21,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const speechBadge     = document.getElementById('speech-state-badge');
     const canvas          = document.getElementById('audio-wave-canvas');
     const ctx             = canvas.getContext('2d');
+    const chkAutoListen   = document.getElementById('chk-auto-listen');
 
     let isListening       = false;
     let animFrameId       = null;
     let silenceTimer      = null;
     let isExecuting       = false;
+    let continuousListening = true;
+    let autoListenTimeout = null;
+
+    if (chkAutoListen) {
+        continuousListening = chkAutoListen.checked;
+        chkAutoListen.addEventListener('change', () => {
+            continuousListening = chkAutoListen.checked;
+        });
+    }
+
+    function scheduleNextListen(delayMs = 600) {
+        if (!continuousListening) return;
+        if (autoListenTimeout) clearTimeout(autoListenTimeout);
+
+        // অডিও কথা বলা শেষ হলে আবার চালু করো
+        if (activeAudio && !activeAudio.paused && !activeAudio.ended) {
+            activeAudio.onended = () => {
+                autoListenTimeout = setTimeout(() => {
+                    if (continuousListening && !isListening && !isExecuting) {
+                        startListening();
+                    }
+                }, delayMs);
+            };
+        } else {
+            autoListenTimeout = setTimeout(() => {
+                if (continuousListening && !isListening && !isExecuting) {
+                    startListening();
+                }
+            }, delayMs);
+        }
+    }
 
     // MediaRecorder Variables
     let mediaStream       = null;
@@ -202,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setBadge('ত্রুটি ❌', 'active');
         } finally {
             isExecuting = false;
+            scheduleNextListen(800);
         }
     }
 
@@ -397,6 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setBadge('ত্রুটি ❌', 'active');
         } finally {
             isExecuting = false;
+            scheduleNextListen(800);
         }
     }
 
