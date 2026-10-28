@@ -41,6 +41,13 @@ class UniversalAgent:
         self.photoshop_path = self._find_photoshop()
         self.last_speech = ""
         try:
+            from core.memory_engine import MemoryEngine
+            self.memory = MemoryEngine()
+        except Exception as e:
+            self.memory = None
+            print(f"[!] MemoryEngine load error: {e}", flush=True)
+
+        try:
             from core.commands import CommandProcessor
             self.command_processor = CommandProcessor(settings=self.settings, assistant=self)
         except Exception as e:
@@ -202,6 +209,14 @@ class UniversalAgent:
         cmd_lower = cmd_clean.lower()
 
         print(f"[*] Processing command: {cmd_clean}", flush=True)
+
+        # 0. স্মৃতি ও দৈনিক কাজের ট্র্যাকিং (আজকের কাজ, কাজ শেষ, কাজের হিসাব, মনে রাখো)
+        mem_res = self._handle_memory_and_tasks(cmd_clean, cmd_lower)
+        if mem_res:
+            if hasattr(self, 'memory') and self.memory:
+                self.memory.log_chat("user", cmd_clean)
+                self.memory.log_chat("assistant", mem_res.get("reply", ""))
+            return mem_res
 
         # 1. দ্রুত বাংলা/ইংরেজি প্যাটার্ন ম্যাচিং
         quick = self._quick_match(cmd_clean, cmd_lower)
@@ -737,6 +752,180 @@ class UniversalAgent:
 
     # ══════════════════════════════════════════════════
     # ══════════════════════════════════════════════════
+    # 🧠 Memory & Daily Tasks Handler
+    # ══════════════════════════════════════════════════
+    def _handle_memory_and_tasks(self, raw: str, low: str) -> dict | None:
+        """স্মৃতি সংরক্ষণ, সারাদিনের কাজের তালিকা রাখা ও ট্র্যাকিং পরিচালনা করে।"""
+        if not hasattr(self, 'memory') or not self.memory:
+            return None
+
+        # ────── ১. সারাদিনের কাজের তালিকা যোগ করা ──────
+        is_add_task = any(p in low for p in [
+            "সারাদিনের কাজ", "আজকের কাজ", "আজকে আমার কাজ", "আজকের টুডু",
+            "কাজের লিস্ট", "আজকে যা যা করব", "আজকে যা করব", "আজকের টাস্ক",
+            "daily tasks", "tasks for today"
+        ]) and not any(p in low for p in ["কি কি", "কী কী", "হিসাব", "বলো", "শেষ", "করছি", "করসি", "করেছি", "done"])
+
+        if is_add_task:
+            tasks = []
+            # Fast pattern extraction if numbers or bullets exist (Instant 0.001s)
+            import re
+            if re.search(r'[১-৯1-9][\.\)\-\s]', raw):
+                parts = re.split(r'[১-৯1-9][\.\)\-\s]', raw)
+                tasks = [p.strip(" \t\n\r,.-") for p in parts if len(p.strip(" \t\n\r,.-")) > 2]
+                tasks = [t for t in tasks if not any(w in t.lower() for w in ["সারাদিনের", "আজকের কাজ", "লিস্ট", "কাজ হলো", "কাজ হল"])]
+
+            # AI fallback if no numbers present
+            if not tasks and self.ai_brain:
+                prompt = f"""Extract the individual task items from this Bengali/English sentence as a JSON array of strings:
+Sentence: "{raw}"
+Example output format: ["task 1", "task 2", "task 3"]
+Output ONLY the JSON array:"""
+                try:
+                    res = self.ai_brain.get_response(prompt)
+                    clean = res.strip().replace("```json", "").replace("```", "").strip()
+                    s = clean.find("[")
+                    e = clean.rfind("]")
+                    if s != -1 and e != -1:
+                        tasks = json.loads(clean[s:e+1])
+                except Exception:
+                    pass
+
+            if not tasks:
+                t_str = raw
+                for sep in ["\n", ",", " এবং ", " আর ", " তারপর ", " এরপর "]:
+                    t_str = t_str.replace(sep, "|")
+                tasks = [t.strip() for t in t_str.split("|") if len(t.strip()) > 3]
+                tasks = [t for t in tasks if not any(w in t.lower() for w in ["সারাদিনের", "আজকের কাজ", "লিস্ট", "কাজ হলো", "কাজ হল"])]
+
+            saved = self.memory.add_tasks(tasks)
+            if saved:
+                lines = [f"আমি আপনার আজকের {len(saved)}টি কাজ ডায়েরিতে নোট করে রেখেছি:"]
+                for i, t in enumerate(saved, 1):
+                    lines.append(f"{i}. {t}")
+                lines.append("\nযে কাজটি শেষ করবেন, আমাকে শুধু বলবেন \"আমি অমুক কাজটা শেষ করেছি\"—আমি সাথে সাথে মার্ক করে নেব।")
+                return {
+                    "success": True,
+                    "action": "daily_tasks_added",
+                    "reply": "\n".join(lines),
+                    "details": f"Added {len(saved)} daily tasks"
+                }
+
+        # ────── ২. কাজ শেষ হয়েছে মার্ক করা ──────
+        is_done = any(w in low for w in [
+            "কাজটা করেছি", "কাজটা করসি", "কাজটা শেষ", "কাজ শেষ", "করে ফেলেছি",
+            "করে ফেলছি", "কমপ্লিট করেছি", "কমপ্লিট করসি", "হয়ে গেছে", "হয়ে গেছে",
+            "done with", "finished task", "completed task"
+        ]) or (any(w in low for w in ["শেষ", "করছি", "করসি", "করেছি", "done"]) and any(w in low for w in ["নম্বর", "নাম্বার", "টাস্ক", "কাজ", "task", "ফটোশপ", "মিটিং", "ক্লায়েন্ট"]))
+
+        if is_done and not any(w in low for w in ["কি কি", "কী কী", "হিসাব"]):
+            success, task_name = self.memory.mark_completed(raw)
+            if not success and self.ai_brain:
+                summary = self.memory.get_tasks_summary()
+                if summary["pending"]:
+                    prompt = f"""The user said: "{raw}"
+Pending tasks: {json.dumps(summary["pending"], ensure_ascii=False)}
+Which of the pending tasks did the user just complete?
+Return ONLY the exact task string from the list, or "NONE" if no match."""
+                    try:
+                        ans = self.ai_brain.get_response(prompt).strip().strip('"\'')
+                        if ans in summary["pending"]:
+                            self.memory.mark_completed(ans)
+                            success = True
+                            task_name = ans
+                    except Exception:
+                        pass
+
+            if success:
+                summary = self.memory.get_tasks_summary()
+                reply = f"দারুণ! \"{task_name}\" সম্পন্ন হিসেবে চিহ্নিত করা হলো। আজকের আর {len(summary['pending'])}টি কাজ বাকি আছে।"
+                if not summary["pending"]:
+                    reply += " 🎉 অভিনন্দন! আপনার আজকের সব কাজ সম্পন্ন হয়েছে!"
+                return {
+                    "success": True,
+                    "action": "task_completed",
+                    "reply": reply,
+                    "details": f"Completed: {task_name}"
+                }
+
+        # ────── ৩. আজকের কাজের হিসাব / কি কি কাজ ছিল ──────
+        is_task_summary = any(w in low for w in [
+            "কি কি কাজ ছিল", "কী কী কাজ ছিল", "কি কি কাজ আছে", "কী কী কাজ আছে",
+            "কাজের হিসাব", "কতটা কাজ বাকি", "কি কি করছি", "কি কি করসি", "কি কাজ বাকি",
+            "আজকে আমার কি কাজ", "কাজের তালিকা", "টাস্ক লিস্ট", "আজকের হিসাব",
+            "tasks today", "what did i do today", "my tasks"
+        ])
+
+        if is_task_summary:
+            summary = self.memory.get_tasks_summary()
+            if summary["total"] == 0:
+                return {
+                    "success": True,
+                    "action": "daily_tasks_summary",
+                    "reply": "আজকের জন্য এখনো কোনো কাজের তালিকা সেভ করা হয়নি। আপনি মুখে বলুন \"আজকে আমার কাজ হলো...\" এবং আমি সব লিখে রাখবো।",
+                    "details": "No tasks found for today"
+                }
+
+            lines = [f"📋 আজকের কাজের হিসাব ({summary['date']}):"]
+            if summary["completed"]:
+                lines.append(f"\n✅ সম্পন্ন কাজ ({len(summary['completed'])}টি):")
+                for i, t in enumerate(summary["completed"], 1):
+                    lines.append(f"  {i}. {t}")
+            else:
+                lines.append("\n⏳ এখনো কোনো কাজ সম্পন্ন হয়নি।")
+
+            if summary["pending"]:
+                lines.append(f"\n⏳ বাকি কাজ ({len(summary['pending'])}টি):")
+                for i, t in enumerate(summary["pending"], 1):
+                    lines.append(f"  {i}. {t}")
+            else:
+                lines.append("\n🎉 সাবাস! আজকের সব কাজ সম্পূর্ণ সম্পন্ন হয়েছে!")
+
+            return {
+                "success": True,
+                "action": "daily_tasks_summary",
+                "reply": "\n".join(lines),
+                "details": f"Total: {summary['total']}, Completed: {len(summary['completed'])}, Pending: {len(summary['pending'])}"
+            }
+
+        # ────── ৪. দীর্ঘমেয়াদী স্মৃতি সংরক্ষণ ("মনে রাখো...") ──────
+        is_remember = any(w in low for w in [
+            "মনে রাখো", "মনে রাখিস", "মনে রেখো", "নোট রাখো", "নোট করো", "মনে রাখবা",
+            "remember that", "remember this", "save note"
+        ])
+        if is_remember:
+            clean_fact = raw
+            for stop in ["মনে রাখো যে", "মনে রাখিস যে", "মনে রেখো যে", "মনে রাখো", "মনে রাখিস", "মনে রেখো", "নোট রাখো", "নোট করো", "remember that", "remember this"]:
+                clean_fact = clean_fact.replace(stop, "")
+            clean_fact = clean_fact.strip(" :,-")
+            if clean_fact:
+                self.memory.remember(clean_fact)
+                return {
+                    "success": True,
+                    "action": "memory_saved",
+                    "reply": f"আমি স্মৃতিতে সংরক্ষণ করে রাখলাম: \"{clean_fact}\"। আপনি যেকোনো সময় জিজ্ঞেস করলে আমি সাথে সাথে বলে দেব।",
+                    "details": f"Saved memory: {clean_fact}"
+                }
+
+        # ────── ৫. স্মৃতি স্মরণ ("মনে আছে...") ──────
+        is_recall = any(w in low for w in [
+            "মনে আছে", "কী বলেছিলাম", "কি বলেছিলাম", "নোট দেখো", "নোট বলো", "স্মৃতিতে কি আছে",
+            "do you remember", "what did i tell you"
+        ])
+        if is_recall:
+            recalled = self.memory.recall(raw)
+            if recalled:
+                mem_texts = [r["content"] for r in recalled]
+                return {
+                    "success": True,
+                    "action": "memory_recalled",
+                    "reply": f"হ্যাঁ, আমার মনে আছে! আপনার সংরক্ষিত নোট হলো: {', '.join(mem_texts)}",
+                    "details": "Recalled memories from SQLite"
+                }
+
+        return None
+
+    # ══════════════════════════════════════════════════
     # 🤖 AI-Directed Universal Execution (Gemini)
     # ══════════════════════════════════════════════════
     def _ai_directed_execution(self, user_command: str) -> dict:
@@ -744,8 +933,15 @@ class UniversalAgent:
             return {"success": False, "action": "ai",
                     "reply": "AI ব্রেন সংযুক্ত নেই।", "details": "No AI brain"}
 
+        context = ""
+        if hasattr(self, 'memory') and self.memory:
+            context = self.memory.get_ai_memory_context()
+
         prompt = f"""You are JARVIS, an autonomous Windows PC controller and intelligent voice assistant.
-The user gave this instruction in Bengali or English: "{user_command}"
+The user gave this instruction or question in Bengali or English: "{user_command}"
+
+Context about the user and their day:
+{context}
 
 You have full control of Windows 10/11. Generate the exact action to accomplish whatever the user asks.
 
@@ -753,7 +949,7 @@ Respond with a JSON object ONLY:
 {{
   "intent": "powershell" | "python" | "open_url" | "conversation",
   "command": "Windows PowerShell command or Python snippet or URL or null",
-  "reply_bengali": "Short natural Bengali spoken reply confirming what you are doing (1-2 sentences)"
+  "reply_bengali": "Short natural Bengali spoken reply answering the question or confirming what you are doing (1-2 sentences)"
 }}
 
 Guidelines:
@@ -761,7 +957,7 @@ Guidelines:
 - For simulating mouse/keyboard combos (e.g. shortcut keys, typing into active window): use "python" with pyautogui.
 - For browsing websites or searching: use "open_url".
 - For answering questions, calculations, general knowledge, or conversational chat: use "conversation" with an intelligent Bengali answer in "reply_bengali".
-- Keep "reply_bengali" concise and natural for voice speaking."""
+- Keep "reply_bengali" concise, accurate and natural for voice speaking."""
 
         try:
             raw = self.ai_brain.get_response(prompt)
@@ -811,6 +1007,10 @@ Guidelines:
             else:
                 # General conversation or information query
                 details = f"Conversation: {reply}"
+
+            if hasattr(self, 'memory') and self.memory:
+                self.memory.log_chat("user", user_command)
+                self.memory.log_chat("assistant", reply)
 
             return {"success": True, "action": intent, "reply": reply, "details": details}
 

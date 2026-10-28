@@ -112,13 +112,14 @@ class AIBrain:
             print(f"\033[91m[!] OpenAI সংযোগে সমস্যা: {e}\033[0m")
             self.client = None
 
-    def get_response(self, user_input: str, history: list = None) -> str:
+    def get_response(self, user_input: str, history: list = None, context: str = None) -> str:
         """
         AI থেকে উত্তর নিয়ে আসো।
 
         Args:
             user_input: ব্যবহারকারীর প্রশ্ন
             history: পূর্ববর্তী কথোপকথনের তালিকা
+            context: স্মৃতি ও বর্তমান কাজের কনটেক্সট
 
         Returns:
             AI এর উত্তর
@@ -127,13 +128,13 @@ class AIBrain:
             return self._fallback_response(user_input)
 
         if self.provider == "gemini":
-            return self._gemini_response(user_input)
+            return self._gemini_response(user_input, history=history, context=context)
         elif self.provider == "openai":
             return self._openai_response(user_input, history)
 
         return self._fallback_response(user_input)
 
-    def _gemini_response(self, user_input: str) -> str:
+    def _gemini_response(self, user_input: str, history: list = None, context: str = None) -> str:
         """Gemini থেকে উত্তর নাও — মাল্টিপল মডেল ফলব্যাক + retry সহ।"""
         fallback_models = getattr(
             self.settings, 'GEMINI_FALLBACK_MODELS',
@@ -142,21 +143,32 @@ class AIBrain:
         primary = self.settings.GEMINI_MODEL
         models_to_try = [primary] + [m for m in fallback_models if m != primary]
 
+        # System instruction with Memory context
+        sys_instruction = self.settings.SYSTEM_PROMPT
+        if context:
+            sys_instruction += f"\n\n[গুরুত্বপূর্ণ স্মৃতি ও আজকের কাজের তথ্য]:\n{context}"
+
+        # Combine history if available
+        combined_prompt = user_input
+        if history and isinstance(history, list) and len(history) > 0:
+            hist_str = "\n".join([f"{h.get('role', 'user')}: {h.get('content', '')}" for h in history[-4:]])
+            combined_prompt = f"পূর্ববর্তী কথা:\n{hist_str}\n\nবর্তমান প্রশ্ন:\n{user_input}"
+
         for model_name in models_to_try:
             max_attempts = 3  # 503 এর জন্য ৩বার try
             for attempt in range(max_attempts):
                 try:
                     if self._use_legacy:
-                        response = self.chat.send_message(user_input)
+                        response = self.chat.send_message(combined_prompt)
                         if response and response.text:
                             return response.text.strip()
                     else:
                         from google.genai import types
                         response = self.client.models.generate_content(
                             model=model_name,
-                            contents=user_input,
+                            contents=combined_prompt,
                             config=types.GenerateContentConfig(
-                                system_instruction=self.settings.SYSTEM_PROMPT,
+                                system_instruction=sys_instruction,
                                 temperature=0.7,
                                 max_output_tokens=800,
                             )
