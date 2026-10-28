@@ -369,7 +369,33 @@ class CommandProcessor:
                 url = f"https://www.{site}.com"
             else:
                 url = site
-        webbrowser.open(url)
+        
+        # Chrome / Edge / Default Browser ওপেন
+        opened = False
+        chrome_paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+        ]
+        for cp in chrome_paths:
+            if os.path.exists(cp):
+                try:
+                    subprocess.Popen([cp, url])
+                    opened = True
+                    break
+                except Exception:
+                    pass
+        if not opened:
+            try:
+                subprocess.Popen(f'start "" "{url}"', shell=True)
+                opened = True
+            except Exception:
+                pass
+        if not opened:
+            webbrowser.open(url)
+
         self.assistant.speak(f"{site} খোলা হচ্ছে।")
 
     def _open_app_or_site(self, name: str) -> bool:

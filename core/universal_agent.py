@@ -178,18 +178,38 @@ class UniversalAgent:
             pass
 
     def _open_url(self, url: str):
+        # 1. Chrome সরাসরি কল করা (উইন্ডোজে সবচেয়ে নির্ভরযোগ্য)
+        chrome_paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+        ]
+        for cp in chrome_paths:
+            if os.path.exists(cp):
+                try:
+                    subprocess.Popen([cp, url])
+                    return
+                except Exception:
+                    pass
+
+        # 2. Windows shell start
         try:
-            webbrowser.open(url)
+            subprocess.Popen(f'start "" "{url}"', shell=True)
             return
         except Exception:
             pass
+
+        # 3. os.startfile / webbrowser fallback
         try:
             os.startfile(url)
             return
         except Exception:
             pass
+
         try:
-            subprocess.Popen(f'start "" "{url}"', shell=True)
+            webbrowser.open(url)
         except Exception:
             pass
 
