@@ -23,37 +23,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx             = canvas.getContext('2d');
     const chkAutoListen   = document.getElementById('chk-auto-listen');
 
-    let isListening       = false;
-    let animFrameId       = null;
-    let silenceTimer      = null;
-    let isExecuting       = false;
+    let isListening         = false;
+    let animFrameId         = null;
+    let silenceTimer        = null;
+    let isExecuting         = false;
     let continuousListening = true;
-    let autoListenTimeout = null;
+    let autoListenTimeout   = null;
+    let userStoppedMic      = false;
 
     if (chkAutoListen) {
         continuousListening = chkAutoListen.checked;
         chkAutoListen.addEventListener('change', () => {
             continuousListening = chkAutoListen.checked;
+            if (continuousListening && !isListening && !isExecuting && !userStoppedMic) {
+                startMediaRecording();
+            }
         });
     }
 
     function scheduleNextListen(delayMs = 600) {
-        if (!continuousListening) return;
+        if (userStoppedMic || !continuousListening) return;
         if (autoListenTimeout) clearTimeout(autoListenTimeout);
 
-        // অডিও কথা বলা শেষ হলে আবার চালু করো
         if (activeAudio && !activeAudio.paused && !activeAudio.ended) {
             activeAudio.onended = () => {
                 autoListenTimeout = setTimeout(() => {
-                    if (continuousListening && !isListening && !isExecuting) {
-                        startListening();
+                    if (!userStoppedMic && continuousListening && !isListening && !isExecuting) {
+                        startMediaRecording();
                     }
                 }, delayMs);
             };
         } else {
             autoListenTimeout = setTimeout(() => {
-                if (continuousListening && !isListening && !isExecuting) {
-                    startListening();
+                if (!userStoppedMic && continuousListening && !isListening && !isExecuting) {
+                    startMediaRecording();
                 }
             }, delayMs);
         }
@@ -74,32 +77,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     // ────────────────────────────────────────────────────────
-    // 🎙️ Mode 1: HTML5 MediaRecorder (AdsPower, Chrome, Edge)
+    // 🎙️ Mode 1: HTML5 MediaRecorder (অবিরাম ব্যাকগ্রাউন্ড মোড)
     // ────────────────────────────────────────────────────────
-    async function startMediaRecording() {
+    async function ensureMediaStream() {
+        if (mediaStream && mediaStream.active) {
+            const tracks = mediaStream.getAudioTracks();
+            if (tracks.length > 0 && tracks[0].readyState === 'live') {
+                return mediaStream;
+            }
+        }
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
+
         try {
+            if (!audioCtx || audioCtx.state === 'closed') {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            const source = audioCtx.createMediaStreamSource(mediaStream);
+            source.connect(analyser);
+        } catch(e) {
+            console.log('AudioContext init notice:', e);
+        }
+        return mediaStream;
+    }
+
+    async function startMediaRecording() {
+        if (isListening || isExecuting) return;
+        try {
+            userStoppedMic = false;
             audioChunks = [];
             speechStarted = false;
             silenceStartTime = null;
 
-            mediaStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                }
-            });
-
-            // Audio Context for Visualization & Silence Detection
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 256;
-                const source = audioCtx.createMediaStreamSource(mediaStream);
-                source.connect(analyser);
-            } catch(e) {
-                console.log('AudioContext init notice:', e);
-            }
+            await ensureMediaStream();
 
             const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/wav', ''];
             let chosenMime = '';
@@ -114,16 +134,20 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             mediaRecorder.onstop = async () => {
-                stopVisuals();
                 if (silenceCheckId) { clearInterval(silenceCheckId); silenceCheckId = null; }
-                if (mediaStream) {
-                    mediaStream.getTracks().forEach(t => t.stop());
-                    mediaStream = null;
+
+                if (userStoppedMic) {
+                    stopVisuals();
+                    if (mediaStream) {
+                        mediaStream.getTracks().forEach(t => t.stop());
+                        mediaStream = null;
+                    }
                 }
 
                 if (audioChunks.length === 0) {
-                    setBadge('কোনো কথা পাওয়া যায়নি', '');
-                    liveSpeechText.textContent = '❌ কোনো সাউন্ড রেকর্ড হয়নি। আবার চেষ্টা করুন।';
+                    if (!userStoppedMic && continuousListening) {
+                        scheduleNextListen(200);
+                    }
                     return;
                 }
 
@@ -131,20 +155,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 await sendAudioBlobToBackend(blob);
             };
 
-            mediaRecorder.start(250);
+            mediaRecorder.start(200);
             isListening = true;
             btnToggleMic.classList.add('active');
             pulseContainer.classList.add('listening');
-            micStatusText.textContent = 'রেকর্ড হচ্ছে... (শেষ হলে ক্লিক করুন)';
-            liveSpeechText.textContent = '🎙️ আপনার কথা শুনছি... বলুন (কথা শেষ হলে মাইকে আবার ক্লিক করুন)';
-            setBadge('রেকর্ড হচ্ছে...', 'active');
+            micStatusText.textContent = 'মাইক্রোফোন সক্রিয় (অবিরাম শুনছে)';
+            liveSpeechText.textContent = '🎙️ আপনার কথা শুনছি... বলুন (অন্য ট্যাবে গেলেও চালু থাকবে)';
+            setBadge('শুনছে... (সক্রিয়)', 'active');
             startVisualizer();
-            addLog('MIC', 'মাইক্রোফোন চালু — কথা বলুন');
 
-            // Silence detector: কথা শেষ হলে ১.২ সেকেন্ডে অটো সাবমিট
+            // সাইলেন্স ডিটেকশন (কথা শেষ হলে অটো সেন্ড হবে, কিন্তু মাইক অন থাকবে)
             if (analyser) {
                 const dataArr = new Uint8Array(analyser.frequencyBinCount);
+                if (silenceCheckId) clearInterval(silenceCheckId);
                 silenceCheckId = setInterval(() => {
+                    if (isExecuting) return;
                     analyser.getByteFrequencyData(dataArr);
                     let sum = 0;
                     for (let i = 0; i < dataArr.length; i++) sum += dataArr[i];
@@ -156,8 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (speechStarted && avg < 12) {
                         if (!silenceStartTime) {
                             silenceStartTime = Date.now();
-                        } else if (Date.now() - silenceStartTime > 1400) {
-                            // ১.৪ সেকেন্ড নীরব থাকলে অটো সাবমিট
+                        } else if (Date.now() - silenceStartTime > 1300) {
                             stopMediaRecording();
                         }
                     }
@@ -177,6 +201,22 @@ document.addEventListener('DOMContentLoaded', () => {
             try { mediaRecorder.stop(); } catch(e){}
         }
         isListening = false;
+    }
+
+    function stopMicByUser() {
+        userStoppedMic = true;
+        isListening = false;
+        if (silenceCheckId) { clearInterval(silenceCheckId); silenceCheckId = null; }
+        if (autoListenTimeout) { clearTimeout(autoListenTimeout); autoListenTimeout = null; }
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            try { mediaRecorder.stop(); } catch(e){}
+        }
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(t => t.stop());
+            mediaStream = null;
+        }
+        stopVisuals();
+        addLog('MIC', 'মাইক্রোফোন বন্ধ করা হয়েছে');
     }
 
     function displayReplyWithUrl(replyText, url) {
@@ -353,8 +393,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             // Default: media_recorder
-            if (isListening) {
-                stopMediaRecording();
+            if (isListening || mediaStream) {
+                stopMicByUser();
             } else {
                 startMediaRecording();
             }
@@ -378,11 +418,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function stopVisuals() {
-        btnToggleMic.classList.remove('active');
-        pulseContainer.classList.remove('listening');
-        micStatusText.textContent = 'মাইক্রোফোন চালু করুন';
-        setBadge('প্রস্তুত', '');
-        stopVisualizer();
+        if (!userStoppedMic && continuousListening) {
+            // অবিরাম মোডে ভিজ্যুয়াল বন্ধ না করে শুধু "অপেক্ষা" দেখাও
+            btnToggleMic.classList.remove('active');
+            pulseContainer.classList.remove('listening');
+            micStatusText.textContent = '🔄 অপেক্ষা করছি... (স্বয়ংক্রিয়ভাবে আবার শুনবে)';
+            setBadge('⏳ প্রস্তুত হচ্ছে...', '');
+            stopVisualizer();
+        } else {
+            btnToggleMic.classList.remove('active');
+            pulseContainer.classList.remove('listening');
+            micStatusText.textContent = 'মাইক্রোফোন চালু করুন';
+            setBadge('প্রস্তুত', '');
+            stopVisualizer();
+        }
     }
 
     function setBadge(text, cls) {
