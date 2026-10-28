@@ -278,4 +278,4 @@ if __name__ == "__main__":
     threading.Thread(target=open_browser, daemon=True).start()
 
     # Flask সার্ভার স্টার্ট
-    app.run(host="127.0.0.1", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)

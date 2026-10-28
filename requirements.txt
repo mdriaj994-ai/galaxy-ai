@@ -1,5 +1,4 @@
 SpeechRecognition>=3.10.0
-pyttsx3>=2.90
 google-genai>=2.30.0
 pyautogui>=0.9.54
 gtts>=2.5.0
@@ -7,8 +6,11 @@ pygame>=2.5.0
 requests>=2.31.0
 psutil>=5.9.0
 python-dotenv>=1.0.0
-playsound>=1.3.0
 flask>=3.0.0
 flask-cors>=6.0.0
-comtypes>=1.2.0
-pycaw>=20230407
+edge-tts>=7.0.0
+# Windows-only (skip on Linux/VPS):
+# pyttsx3>=2.90
+# comtypes>=1.2.0
+# pycaw>=20230407
+# playsound>=1.3.0

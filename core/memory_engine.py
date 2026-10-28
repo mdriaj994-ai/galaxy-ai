@@ -242,3 +242,4 @@ class MemoryEngine:
             parts.append("ব্যবহারকারীর সংরক্ষিত স্মৃতি ও নোট: " + " | ".join(mem_items))
 
         return "\n".join(parts)
+
