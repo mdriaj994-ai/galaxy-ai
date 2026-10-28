@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual Environment
+venv/
+env/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# JARVIS নির্দিষ্ট
+logs/
+audio/*.mp3
+audio/*.wav
+data/
+.env
+
+# API Keys (কখনও আপলোড করবেন না!)
+config/secrets.py
+*.key
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+
+# Test/temp scripts
+get_token.py
+create_repo.py
+test_edge.js
+test_ws.js
+test_fetch.js
+test.png
+check_page_error.js
+*.mp3
+
+# Galaxy AI node_modules (large, no need to push)
+galaxy-ai/node_modules/
+galaxy-ai/dist/

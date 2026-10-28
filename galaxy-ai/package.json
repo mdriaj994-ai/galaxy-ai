@@ -1,0 +1,30 @@
+{
+  "name": "galaxy-ai",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Galaxy AI - Local-First Desktop & Mobile AI Assistant Application Framework",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\""
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.6.2",
+    "concurrently": "^9.1.2",
+    "electron": "^34.2.0",
+    "postcss": "^8.5.32",
+    "tailwindcss": "^3.4.19",
+    "vite": "^6.4.5",
+    "wait-on": "^8.0.2"
+  }
+}

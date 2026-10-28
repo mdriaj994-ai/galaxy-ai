@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS AI - ভয়েস ও পিসি কন্ট্রোল ড্যাশবোর্ড</title>
+    <meta name="description" content="JARVIS Universal Voice Assistant Dashboard with Bengali Voice Recognition and PC Automation">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="hud-background">
+        <div class="grid-overlay"></div>
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <main class="dashboard-container">
+        <!-- Top Navigation / Status Header -->
+        <header class="hud-header">
+            <div class="brand-section">
+                <div class="logo-core">
+                    <div class="arc-ring ring-outer"></div>
+                    <div class="arc-ring ring-inner"></div>
+                    <div class="core-dot"></div>
+                </div>
+                <div>
+                    <h1 class="brand-title">JARVIS <span>OS v2.5</span></h1>
+                    <p class="brand-subtitle">বাংলা ভয়েস পিসি কন্ট্রোল — বলুন, সাথে সাথে হবে</p>
+                </div>
+            </div>
+
+            <div class="system-status-pills">
+                <div class="status-pill" id="pill-ai">
+                    <span class="status-indicator active"></span>
+                    <span class="pill-label">GEMINI AI: ONLINE</span>
+                </div>
+                <div class="status-pill" id="pill-voice">
+                    <span class="status-indicator active"></span>
+                    <span class="pill-label">বাংলা STT: READY</span>
+                </div>
+                <div class="status-pill" id="pill-pc">
+                    <span class="status-indicator active"></span>
+                    <span class="pill-label">PC CONTROL: FULL</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="hud-grid">
+            <!-- Left Column: Voice HUD -->
+            <section class="hud-card visualizer-card">
+                <div class="card-header">
+                    <span class="header-badge">VOICE CORE</span>
+                    <h2>ভয়েস কন্ট্রোল</h2>
+                    <div class="lang-selector">
+                        <label for="mic-mode-select">মোড:</label>
+                        <select id="mic-mode-select">
+                            <option value="media_recorder" selected>🌐 ব্রাউজার রেকর্ডার (নিশ্চিত কাজ)</option>
+                            <option value="hardware_mic">💻 পিসি সরাসরি মাইক (USB)</option>
+                            <option value="web_speech">⚡ লাইভ ক্রোম স্পিচ</option>
+                        </select>
+                        <label for="lang-select" style="margin-left: 6px;">ভাষা:</label>
+                        <select id="lang-select">
+                            <option value="bn-BD" selected>বাংলা (BD)</option>
+                            <option value="en-US">English (US)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Circular Visualizer -->
+                <div class="voice-centerpiece">
+                    <div class="pulse-container" id="pulse-container">
+                        <div class="pulse-ring ring-1"></div>
+                        <div class="pulse-ring ring-2"></div>
+                        <div class="pulse-ring ring-3"></div>
+                        <button id="btn-toggle-mic" class="mic-main-button" aria-label="Toggle Microphone">
+                            <div class="mic-icon-wrapper">
+                                <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                                </svg>
+                            </div>
+                            <span id="mic-status-text" class="mic-status-label">মাইক্রোফোন চালু করুন</span>
+                        </button>
+                    </div>
+                    <canvas id="audio-wave-canvas" width="400" height="80"></canvas>
+                </div>
+
+                <!-- Live Speech Transcript -->
+                <div class="transcript-box">
+                    <div class="transcript-header-row">
+                        <div class="box-tag">লাইভ স্পিচ ট্রানস্ক্রিপ্ট</div>
+                        <div class="transcript-actions">
+                            <span id="speech-state-badge" class="state-badge">প্রস্তুত</span>
+                            <button id="btn-force-run" class="btn-run-now" title="এখনই রান করুন">
+                                <span>&#9889; রান করুন</span>
+                            </button>
+                        </div>
+                    </div>
+                    <p id="live-speech-text" class="speech-display">মাইক্রোফোন চালু করে বাংলায় বলুন — সাথে সাথে কাজ হবে...</p>
+                </div>
+
+                <!-- Text Input -->
+                <form id="text-command-form" class="command-input-bar">
+                    <input type="text" id="manual-command-input"
+                        placeholder="কীবোর্ড দিয়ে লিখুন (যেমন: ইউটিউবে বাংলা গান বাজাও)..."
+                        autocomplete="off">
+                    <button type="submit" id="btn-submit-command" class="btn-primary">
+                        <span>পাঠান</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Right Column: AI Response & Logs -->
+            <section class="hud-card feed-card">
+                <div class="card-header">
+                    <span class="header-badge">AI &amp; SYSTEM</span>
+                    <h2>JARVIS রেসপন্স ও অ্যাকশন লগ</h2>
+                </div>
+
+                <!-- JARVIS Response Box -->
+                <div class="jarvis-response-container">
+                    <div class="response-header">
+                        <div class="ai-avatar">J</div>
+                        <div>
+                            <span class="ai-name">JARVIS AI</span>
+                            <span class="ai-state" id="ai-status-tag">Online &amp; Ready</span>
+                        </div>
+                    </div>
+                    <div class="response-body">
+                        <p id="jarvis-speech-output">স্বাগতম! মাইক চালু করুন এবং বাংলায় বলুন — আমি সাথে সাথে কাজ করব।</p>
+                    </div>
+                </div>
+
+                <!-- Quick Command Chips -->
+                <div class="quick-actions-bar">
+                    <span class="quick-actions-title">দ্রুত কমান্ড (১-ক্লিক):</span>
+                    <div class="chips-container">
+                        <button class="chip-btn" data-cmd="ইউটিউবে বাংলা গান বাজাও">&#127925; বাংলা গান</button>
+                        <button class="chip-btn" data-cmd="আজকে কি বার">&#128197; আজ কি বার</button>
+                        <button class="chip-btn" data-cmd="এখন সময় কত">&#8987; সময় কত</button>
+                        <button class="chip-btn" data-cmd="ব্যাটারি কত">&#128267; ব্যাটারি</button>
+                        <button class="chip-btn" data-cmd="ফেসবুক খোলো">&#128216; ফেসবুক</button>
+                        <button class="chip-btn" data-cmd="ভলিউম বাড়াও">&#128266; ভলিউম +</button>
+                        <button class="chip-btn" data-cmd="ভলিউম কমাও">&#128265; ভলিউম -</button>
+                        <button class="chip-btn" data-cmd="স্ক্রিনশট নাও">&#128247; স্ক্রিনশট</button>
+                        <button class="chip-btn" data-cmd="সব মিনিমাইজ করো">&#128471; মিনিমাইজ</button>
+                        <button class="chip-btn" data-cmd="ক্যালকুলেটর খোলো">&#129518; ক্যালকুলেটর</button>
+                        <button class="chip-btn" data-cmd="নোটপ্যাড খোলো">&#128221; নোটপ্যাড</button>
+                        <button class="chip-btn" data-cmd="ফটোশপ খোলো">&#127912; ফটোশপ</button>
+                        <button class="chip-btn" data-cmd="রিসাইকেল বিন খালি করো">&#128465; ট্র্যাশ পরিষ্কার</button>
+                    </div>
+                </div>
+
+                <!-- Audit Log -->
+                <div class="actions-audit-log">
+                    <div class="log-title-row">
+                        <span class="log-title">সিস্টেম অ্যাকশন হিস্ট্রি</span>
+                        <button id="btn-clear-logs" class="btn-subtle">পরিষ্কার করুন</button>
+                    </div>
+                    <div class="log-scroll-area" id="log-container">
+                        <div class="log-item success">
+                            <span class="log-time">Now</span>
+                            <span class="log-badge">SYSTEM</span>
+                            <span class="log-text">JARVIS চালু হয়েছে। মাইক চালু করে বাংলায় বলুন!</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="/app.js"></script>
+</body>
+</html>

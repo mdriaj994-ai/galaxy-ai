@@ -1,0 +1,301 @@
+"""
+JARVIS Speech Engine
+কথা শোনা (STT) এবং কথা বলা (TTS) পরিচালনা করে।
+"""
+
+import os
+import io
+import sys
+import time
+import random
+import threading
+import tempfile
+import subprocess
+
+
+class SpeechEngine:
+    """Speech-to-Text এবং Text-to-Speech ইঞ্জিন।"""
+
+    def __init__(self, settings):
+        self.settings = settings
+        self.tts_engine = None
+        self.recognizer = None
+        self.microphone = None
+        self._tts_lock = threading.Lock()
+
+        self._init_tts()
+        self._init_stt()
+
+    # ══════════════════════════════════════════
+    # 🔊 Text-to-Speech (কথা বলা)
+    # ══════════════════════════════════════════
+
+    def _init_tts(self):
+        """TTS ইঞ্জিন শুরু করো।"""
+        if self.settings.TTS_ENGINE == "pyttsx3":
+            self._init_pyttsx3()
+        elif self.settings.TTS_ENGINE == "gtts":
+            self._check_gtts()
+
+    def _init_pyttsx3(self):
+        """pyttsx3 শুরু করো।"""
+        try:
+            import pyttsx3
+            self.tts_engine = pyttsx3.init()
+            self.tts_engine.setProperty('rate', self.settings.TTS_RATE)
+            self.tts_engine.setProperty('volume', self.settings.TTS_VOLUME)
+            voices = self.tts_engine.getProperty('voices')
+            if voices:
+                if self.settings.TTS_VOICE_GENDER == "female" and len(voices) > 1:
+                    self.tts_engine.setProperty('voice', voices[1].id)
+                else:
+                    self.tts_engine.setProperty('voice', voices[0].id)
+            print("\033[92m  [✓] pyttsx3 TTS Engine সক্রিয়\033[0m")
+        except ImportError:
+            print("\033[91m[!] pyttsx3 ইনস্টল করুন: pip install pyttsx3\033[0m")
+            self.tts_engine = None
+        except Exception as e:
+            print(f"\033[91m[!] TTS সমস্যা: {e}\033[0m")
+            self.tts_engine = None
+
+    def _check_gtts(self):
+        """gTTS পরীক্ষা করো।"""
+        try:
+            import gtts
+            import pygame
+            print("\033[92m  [✓] gTTS + pygame Engine সক্রিয়\033[0m")
+        except ImportError as e:
+            missing = str(e).split("'")[-2] if "'" in str(e) else str(e)
+            print(f"\033[91m[!] gTTS সেটআপ অসম্পূর্ণ: pip install gtts pygame\033[0m")
+
+    def speak(self, text: str):
+        """টেক্সট পড়ে শোনাও।"""
+        if not text:
+            return
+        text = self._clean_text(text)
+        with self._tts_lock:
+            if self.settings.TTS_ENGINE == "pyttsx3" and self.tts_engine:
+                self._speak_pyttsx3(text)
+            elif self.settings.TTS_ENGINE == "gtts":
+                self._speak_gtts(text)
+
+    def _speak_pyttsx3(self, text: str):
+        """pyttsx3 দিয়ে কথা বলো।"""
+        try:
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
+        except RuntimeError:
+            try:
+                import pyttsx3
+                self.tts_engine = pyttsx3.init()
+                self.tts_engine.setProperty('rate', self.settings.TTS_RATE)
+                self.tts_engine.setProperty('volume', self.settings.TTS_VOLUME)
+                self.tts_engine.say(text)
+                self.tts_engine.runAndWait()
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"\033[91m[TTS Error] {e}\033[0m")
+
+    def _speak_gtts(self, text: str):
+        """gTTS দিয়ে বাংলা/ইংরেজি কথা বলো — PC স্পিকারে শোনাবে।"""
+        tmp_path = None
+        try:
+            from gtts import gTTS
+
+            # বাংলা vs ইংরেজি detect করো
+            lang = self.settings.GTTS_LANG
+            if lang == "bn":
+                # যদি বেশিরভাগ ASCII (ইংরেজি) হয়, তাহলে en ব্যবহার করো
+                ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(len(text), 1)
+                if ascii_ratio > 0.8:
+                    lang = "en"
+
+            tts = gTTS(text=text, lang=lang, slow=False)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp:
+                tmp_path = tmp.name
+                tts.save(tmp_path)
+
+            played = False
+
+            # পদ্ধতি ১: pygame
+            try:
+                import pygame
+                if not pygame.mixer.get_init():
+                    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
+                pygame.mixer.music.load(tmp_path)
+                pygame.mixer.music.play()
+                while pygame.mixer.music.get_busy():
+                    time.sleep(0.05)
+                pygame.mixer.music.stop()
+                played = True
+            except Exception as pg_err:
+                print(f"[gTTS pygame]: {pg_err}", flush=True)
+
+            # পদ্ধতি ২: playsound
+            if not played:
+                try:
+                    from playsound import playsound
+                    playsound(tmp_path, block=True)
+                    played = True
+                except Exception as ps_err:
+                    print(f"[gTTS playsound]: {ps_err}", flush=True)
+
+            # পদ্ধতি ৩: Windows built-in — VLC বা wmplayer (mp3 সাপোর্ট)
+            if not played:
+                try:
+                    # vlc commandline
+                    vlc_path = r"C:\Program Files\VideoLAN\VLC\vlc.exe"
+                    if os.path.exists(vlc_path):
+                        subprocess.run(
+                            [vlc_path, "--intf", "dummy", "--play-and-exit", tmp_path],
+                            timeout=30, capture_output=True
+                        )
+                        played = True
+                except Exception:
+                    pass
+
+            # পদ্ধতি ৪: Windows Media Player via PowerShell (সঠিক COM object)
+            if not played:
+                try:
+                    ps_cmd = (
+                        f"$player = New-Object System.Windows.Media.MediaPlayer; "
+                        f"$player.Open([uri]::new('{tmp_path}')); "
+                        f"$player.Play(); Start-Sleep -Seconds 10"
+                    )
+                    subprocess.run(
+                        ["powershell", "-Command", ps_cmd],
+                        timeout=15, capture_output=True
+                    )
+                except Exception:
+                    pass
+
+        except ImportError:
+            print("\033[91m[!] gtts ইনস্টল করো: pip install gtts pygame\033[0m")
+        except Exception as e:
+            print(f"[gTTS Error]: {e}", flush=True)
+        finally:
+            # অস্থায়ী ফাইল মুছো
+            if tmp_path:
+                try:
+                    time.sleep(0.3)
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+
+    def _clean_text(self, text: str) -> str:
+        """TTS এর জন্য টেক্সট পরিষ্কার করো।"""
+        import re
+        # মার্কডাউন সরাও
+        text = re.sub(r'\*+', '', text)
+        text = re.sub(r'#+\s*', '', text)
+        text = re.sub(r'`+', '', text)
+        text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+        text = re.sub(r'_{1,2}([^_]+)_{1,2}', r'\1', text)
+        # একাধিক স্পেস সরাও
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+
+    # ══════════════════════════════════════════
+    # 🎤 Speech-to-Text (কথা শোনা)
+    # ══════════════════════════════════════════
+
+    def _init_stt(self):
+        """STT ইঞ্জিন শুরু করো।"""
+        try:
+            import speech_recognition as sr
+            self.recognizer = sr.Recognizer()
+            self.recognizer.energy_threshold = self.settings.MIC_ENERGY_THRESHOLD
+            self.recognizer.dynamic_energy_threshold = True
+            self.recognizer.pause_threshold = 0.8
+
+            try:
+                self.microphone = sr.Microphone()
+                with self.microphone as source:
+                    self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                print("\033[92m  [✓] মাইক্রোফোন সংযুক্ত ও calibrate হয়েছে (PyAudio)\033[0m")
+            except Exception:
+                try:
+                    import sounddevice as sd
+                    self.has_sounddevice = True
+                    self.microphone = None
+                    print("\033[92m  [✓] মাইক্রোফোন সংযুক্ত হয়েছে (SoundDevice Engine)\033[0m")
+                except Exception:
+                    self.has_sounddevice = False
+                    self.microphone = None
+                    print("\033[93m  [!] মাইক্রোফোন পাওয়া যায়নি। Typing Mode ব্যবহার করুন।\033[0m")
+
+        except ImportError:
+            print("\033[91m[!] speech_recognition ইনস্টল করুন: pip install SpeechRecognition\033[0m")
+            self.recognizer = None
+
+    def listen(self) -> str:
+        """মাইক্রোফোন থেকে কথা শোনো (PyAudio অথবা SoundDevice দিয়ে)।"""
+        if not self.recognizer:
+            return ""
+
+        # SoundDevice ফলব্যাক
+        if getattr(self, 'has_sounddevice', False) and not self.microphone:
+            return self._listen_sounddevice()
+
+        if not self.microphone:
+            return ""
+
+        try:
+            import speech_recognition as sr
+            with self.microphone as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.3)
+                print("\033[94m  🎤 শুনছি...\033[0m", end="\r", flush=True)
+                audio = self.recognizer.listen(
+                    source,
+                    timeout=self.settings.MIC_TIMEOUT,
+                    phrase_time_limit=self.settings.MIC_PHRASE_TIMEOUT
+                )
+                print("\033[93m  🔄 বুঝছি...\033[0m", end="\r", flush=True)
+
+            text = self.recognizer.recognize_google(
+                audio,
+                language=self.settings.LANGUAGE
+            )
+            return text
+
+        except Exception as e:
+            return ""
+
+    def _listen_sounddevice(self) -> str:
+        """PyAudio ছাড়া সরাসরি sounddevice দিয়ে রেকর্ড ও রিকগনিশন।"""
+        try:
+            import sounddevice as sd
+            import speech_recognition as sr
+            import numpy as np
+
+            fs = 16000
+            duration = min(self.settings.MIC_TIMEOUT or 6, 8)
+            print("\033[94m  🎤 শুনছি (কথা বলুন)...\033[0m", end="\r", flush=True)
+
+            recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
+            sd.wait()
+
+            # শব্দ থাকলে গুগল রিকগনিশনে পাঠাও
+            if np.max(np.abs(recording)) < 400:
+                return ""
+
+            print("\033[93m  🔄 বুঝছি...\033[0m", end="\r", flush=True)
+            audio_bytes = recording.tobytes()
+            audio_data = sr.AudioData(audio_bytes, fs, 2)
+            text = self.recognizer.recognize_google(
+                audio_data,
+                language=self.settings.LANGUAGE
+            )
+            return text.strip()
+        except Exception:
+            return ""
+
+    def listen_for_wake_word(self) -> bool:
+        """ওয়েক ওয়ার্ড শোনার চেষ্টা করো।"""
+        text = self.listen()
+        if text:
+            text_lower = text.lower()
+            return any(phrase in text_lower for phrase in self.settings.WAKE_PHRASES)
+        return False
