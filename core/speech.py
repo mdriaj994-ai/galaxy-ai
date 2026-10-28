@@ -12,6 +12,15 @@ import threading
 import tempfile
 import subprocess
 
+# Windows UTF-8 Terminal Fix
+try:
+    if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if sys.stderr.encoding and sys.stderr.encoding.lower() != 'utf-8':
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 
 class SpeechEngine:
     """Speech-to-Text এবং Text-to-Speech ইঞ্জিন।"""
@@ -246,6 +255,9 @@ class SpeechEngine:
     def _clean_text(self, text: str) -> str:
         """TTS এর জন্য টেক্সট পরিষ্কার করো।"""
         import re
+        # ইমোজি ও স্পেশাল সিম্বল বাদ দাও যাতে টিটিএস ক্লিয়ারলি উচ্চারণ করে
+        text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
+        text = re.sub(r'[\u2600-\u27bf\u2300-\u23ff\ufe0f]', '', text)
         # মার্কডাউন সরাও
         text = re.sub(r'\*+', '', text)
         text = re.sub(r'#+\s*', '', text)

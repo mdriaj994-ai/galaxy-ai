@@ -410,7 +410,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeAudio.pause();
                 activeAudio = null;
             }
-            activeAudio = new Audio('/api/tts?text=' + encodeURIComponent(text));
+            const audioUrl = '/api/tts?text=' + encodeURIComponent(text) + '&t=' + Date.now();
+            activeAudio = new Audio(audioUrl);
             activeAudio.volume = 1.0;
             const playPromise = activeAudio.play();
             if (playPromise !== undefined) {

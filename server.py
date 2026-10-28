@@ -212,11 +212,15 @@ def api_tts():
         import asyncio
         import edge_tts
 
-        ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(len(text), 1)
+        clean_text = speech_engine._clean_text(text)
+        if not clean_text:
+            clean_text = text
+
+        ascii_ratio = sum(1 for c in clean_text if ord(c) < 128) / max(len(clean_text), 1)
         voice = getattr(settings, 'EDGE_TTS_VOICE_EN', 'en-US-ChristopherNeural') if ascii_ratio > 0.8 else getattr(settings, 'EDGE_TTS_VOICE_MALE', 'bn-BD-PradeepNeural')
 
         async def _gen():
-            comm = edge_tts.Communicate(text, voice)
+            comm = edge_tts.Communicate(clean_text, voice)
             data = b""
             async for chunk in comm.stream():
                 if chunk["type"] == "audio":
@@ -224,12 +228,16 @@ def api_tts():
             return data
 
         audio_bytes = asyncio.run(_gen())
-        return send_file(
+        resp = send_file(
             io.BytesIO(audio_bytes),
             mimetype="audio/mpeg",
             as_attachment=False,
             download_name="reply.mp3"
         )
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
     except Exception as e:
         print(f"[API TTS Error]: {e}", flush=True)
         return jsonify({"error": str(e)}), 500
