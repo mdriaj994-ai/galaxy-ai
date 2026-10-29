@@ -154,6 +154,49 @@ class UniversalAgent:
                 return
             except Exception:
                 pass
+
+        # ── Chrome ──
+        if target_lower in ["chrome", "chrome.exe", "google chrome"]:
+            chrome_paths = [
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe")
+            ]
+            for p in chrome_paths:
+                if os.path.exists(p):
+                    try:
+                        os.startfile(p)
+                        return
+                    except Exception:
+                        subprocess.Popen([p])
+                        return
+            try:
+                subprocess.Popen("start chrome", shell=True)
+                return
+            except Exception:
+                pass
+
+        # ── Settings ──
+        if target_lower in ["settings", "ms-settings:", "উইন্ডোজ সেটিংস"]:
+            try:
+                subprocess.Popen("start ms-settings:", shell=True)
+                return
+            except Exception:
+                pass
+
+        # ── Task Manager ──
+        if target_lower in ["taskmgr", "taskmgr.exe", "task manager"]:
+            try:
+                os.startfile("taskmgr.exe")
+                return
+            except Exception:
+                pass
+
+        # ── Paint ──
+        if target_lower in ["paint", "mspaint", "mspaint.exe"]:
+            try:
+                os.startfile("mspaint.exe")
+                return
             except Exception:
                 pass
 
@@ -224,6 +267,26 @@ class UniversalAgent:
         except Exception:
             pass
 
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        if not text:
+            return ""
+        import unicodedata
+        # Unicode Normalization Form C
+        t = unicodedata.normalize('NFC', text)
+        # Standardize Bengali character variants
+        t = t.replace('\u09af\u09bc', '\u09df')  # yya
+        t = t.replace('\u09a1\u09bc', '\u09dc')  # rra
+        t = t.replace('\u09a2\u09bc', '\u09dd')  # rha
+        # Common phonetic / spelling standardizations
+        t = t.replace('সময়', 'সময়')
+        t = t.replace('বাড়াও', 'বাড়াও')
+        t = t.replace('বাড়া', 'বাড়া')
+        t = t.replace('কমাও', 'কমাও')
+        t = t.replace('কী বার', 'কি বার')
+        t = t.replace('খুলো', 'খোলো')
+        return t.strip().lower()
+
     def execute(self, user_command: str) -> dict:
         """
         ব্যবহারকারীর বাংলা বা ইংরেজি কমান্ড বিশ্লেষণ করে উপযুক্ত কাজ সম্পন্ন করে।
@@ -237,9 +300,9 @@ class UniversalAgent:
             }
 
         cmd_clean = user_command.strip()
-        cmd_lower = cmd_clean.lower()
+        cmd_lower = self._normalize_text(cmd_clean)
 
-        print(f"[*] Processing command: {cmd_clean}", flush=True)
+        print(f"[*] Processing command: {cmd_clean} (normalized: {cmd_lower})", flush=True)
 
         # 0. স্মৃতি ও দৈনিক কাজের ট্র্যাকিং (আজকের কাজ, কাজ শেষ, কাজের হিসাব, মনে রাখো)
         mem_res = self._handle_memory_and_tasks(cmd_clean, cmd_lower)
@@ -262,7 +325,7 @@ class UniversalAgent:
         # 3. Full PC Command Processor (মাউস, কীবোর্ড, উইন্ডো, সাউন্ড, সিস্টেম)
         if self.command_processor:
             self.last_speech = ""
-            handled = self.command_processor.process(cmd_clean)
+            handled = self.command_processor.process(cmd_clean) or self.command_processor.process(cmd_lower)
             if handled:
                 reply = self.last_speech or "কাজটি সম্পন্ন হয়েছে।"
                 return {
@@ -534,6 +597,7 @@ class UniversalAgent:
             "জিমেইল": "https://mail.google.com",
             "gmail": "https://mail.google.com",
             "হোয়াটসঅ্যাপ": "https://web.whatsapp.com",
+            "হোয়াটসঅ্যাপ": "https://web.whatsapp.com",
             "whatsapp": "https://web.whatsapp.com",
             "গিটহাব": "https://github.com",
             "github": "https://github.com",
@@ -701,31 +765,25 @@ class UniversalAgent:
     # ══════════════════════════════════════════════════
     def _handle_common_apps(self, low: str) -> dict:
         apps = {
-            "notepad": (["নোটপ্যাড", "notepad"], "notepad.exe", "নোটপ্যাড"),
-            "calc":    (["ক্যালকুলেটর", "calculator", "calc"], "calc.exe", "ক্যালকুলেটর"),
-            "chrome":  (["ক্রোম", "chrome", "ব্রাউজার"], "chrome.exe", "গুগল ক্রোম"),
-            "explorer":(["ফাইল এক্সপ্লোরার", "মাই কম্পিউটার", "explorer"], "explorer.exe", "ফাইল এক্সপ্লোরার"),
-            "cmd":     (["কমান্ড প্রম্পট", "টার্মিনাল", "cmd"], "cmd.exe", "কমান্ড প্রম্পট"),
-            "paint":   (["পেইন্ট", "paint", "mspaint"], "mspaint.exe", "পেইন্ট"),
-            "wordpad": (["ওয়ার্ডপ্যাড", "wordpad"], "wordpad.exe", "ওয়ার্ডপ্যাড"),
+            "notepad": (["নোটপ্যাড", "নোট প্যাড", "notepad"], "notepad", "নোটপ্যাড"),
+            "calc":    (["ক্যালকুলেটর", "calculator", "calc"], "calc", "ক্যালকুলেটর"),
+            "chrome":  (["ক্রোম", "chrome", "গুগল ক্রোম", "ব্রাউজার"], "chrome", "গুগল ক্রোম"),
+            "explorer":(["ফাইল এক্সপ্লোরার", "মাই কম্পিউটার", "দিস পিসি", "ফাইল ম্যানেজার", "explorer"], "explorer", "ফাইল এক্সপ্লোরার"),
+            "cmd":     (["কমান্ড প্রম্পট", "টার্মিনাল", "cmd"], "cmd", "কমান্ড প্রম্পট"),
+            "paint":   (["পেইন্ট", "paint", "mspaint"], "paint", "পেইন্ট"),
+            "settings":(["সেটিংস", "উইন্ডোজ সেটিংস", "settings"], "settings", "উইন্ডোজ সেটিংস"),
+            "taskmgr": (["টাস্ক ম্যানেজার", "টাস্কম্যানেজার", "task manager", "taskmgr"], "taskmgr", "টাস্ক ম্যানেজার"),
         }
-        for app_id, (triggers, exe, name_bn) in apps.items():
+        for app_id, (triggers, exe_target, name_bn) in apps.items():
             if any(t in low for t in triggers):
                 if any(w in low for w in ["বন্ধ করো", "close", "kill", "বন্ধ কর"]):
-                    os.system(f"taskkill /f /im {exe} >nul 2>&1")
+                    os.system(f"taskkill /f /im {exe_target}.exe >nul 2>&1")
                     return {"success": True, "action": "close_app",
-                            "reply": f"{name_bn} বন্ধ করা হয়েছে।", "details": f"Closed {exe}"}
+                            "reply": f"{name_bn} বন্ধ করা হয়েছে।", "details": f"Closed {exe_target}"}
                 else:
-                    # সরাসরি subprocess দিয়ে খোলো — os.startfile() নয়!
-                    try:
-                        subprocess.Popen([exe])
-                    except Exception:
-                        try:
-                            subprocess.Popen(exe, shell=True)
-                        except Exception:
-                            pass
+                    self._start_process(exe_target)
                     return {"success": True, "action": "open_app",
-                            "reply": f"{name_bn} চালু করা হচ্ছে।", "details": f"Opened {exe}"}
+                            "reply": f"{name_bn} চালু করা হচ্ছে।", "details": f"Opened {name_bn}"}
         return None
 
     # ══════════════════════════════════════════════════

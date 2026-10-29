@@ -138,9 +138,9 @@ class AIBrain:
         """Gemini থেকে উত্তর নাও — মাল্টিপল মডেল ফলব্যাক + retry সহ।"""
         fallback_models = getattr(
             self.settings, 'GEMINI_FALLBACK_MODELS',
-            ['gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+            ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.7-flash']
         )
-        primary = self.settings.GEMINI_MODEL
+        primary = getattr(self.settings, 'GEMINI_MODEL', 'gemini-3.5-flash')
         models_to_try = [primary] + [m for m in fallback_models if m != primary]
 
         # System instruction with Memory context

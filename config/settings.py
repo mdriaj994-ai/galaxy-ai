@@ -30,8 +30,8 @@ class Settings:
     # ══════════════════════════════════════════
 
     AI_PROVIDER = "gemini"          # "gemini" অথবা "openai"
-    GEMINI_MODEL = "gemini-3.8-flash"
-    GEMINI_FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    GEMINI_MODEL = "gemini-3.5-flash"
+    GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.7-flash"]
     OPENAI_MODEL = "gpt-4o-mini"
 
     SYSTEM_PROMPT = """You are JARVIS, an autonomous AI voice assistant AND Windows PC controller for Bengali and English speakers.
