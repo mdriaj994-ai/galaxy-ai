@@ -608,11 +608,14 @@ class UniversalAgent:
             "চ্যাটজিপিটি": "https://chat.openai.com",
             "chatgpt": "https://chat.openai.com",
         }
-        open_bn = ["খোলো", "খুলো", "খোল", "ওপেন করো", "চালু করো", "দেখাও"]
-        open_en = ["open", "go to", "launch", "show", "kholo", "chalu koro"]
-        # শুধু open keyword না থাকলেও site name থাকলে খুলে দাও
+        open_bn = ["খোলো", "খুলো", "খোল", "ওপেন করো", "ওপেন কর", "চালু করো", "চালু কর", "দেখাও", "যাও", "ঢোকো", "ঢোক"]
+        open_en = ["open", "go to", "launch", "show", "kholo", "chalu koro", "visit"]
+        is_question = any(q in low for q in ["কে", "কি", "কী", "কবে", "কত", "কেন", "কার", "কোথায়", "who", "when", "how", "what", "why"])
         for site_key, site_url in web_map.items():
             if site_key in low:
+                # যদি কোনো প্রশ্ন করা হয় (যেমন: ফেসবুক কে তৈরি করেছে), তাহলে ওয়েবসাইট ওপেন না করে উত্তর দাও
+                if is_question and not any(op in low for op in open_bn + open_en):
+                    continue
                 self._open_url(site_url)
                 return {"success": True, "action": "open_website",
                         "reply": f"{site_key} খোলা হচ্ছে।",
