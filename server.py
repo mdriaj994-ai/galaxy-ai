@@ -219,9 +219,12 @@ def api_tts():
     # 1. Cartesia AI Voice চেষ্টা করো
     cartesia_key = getattr(settings, 'CARTESIA_API_KEY', '') or os.getenv('CARTESIA_API_KEY', '')
     cartesia_voice_id = getattr(settings, 'CARTESIA_VOICE_ID', '09ff9493-419d-45fc-937d-411115824bfc') or os.getenv('CARTESIA_VOICE_ID', '09ff9493-419d-45fc-937d-411115824bfc')
+    if req_voice and len(req_voice) > 20 and "-" in req_voice:
+        cartesia_voice_id = req_voice
     cartesia_model = getattr(settings, 'CARTESIA_MODEL', 'sonic-3.6')
 
-    if cartesia_key and req_voice != "edge-tts":
+    is_edge_voice = req_voice and (req_voice.startswith("bn-") or req_voice.startswith("en-") or req_voice == "edge-tts")
+    if cartesia_key and not is_edge_voice:
         try:
             import requests
             import io

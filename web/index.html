@@ -55,18 +55,27 @@
                 <div class="card-header">
                     <span class="header-badge">VOICE CORE</span>
                     <h2>ভয়েস কন্ট্রোল</h2>
-                    <div class="lang-selector">
+                    <div class="lang-selector" style="flex-wrap: wrap; gap: 8px;">
                         <label for="mic-mode-select">মোড:</label>
                         <select id="mic-mode-select">
-                            <option value="media_recorder" selected>🌐 ব্রাউজার রেকর্ডার (নিশ্চিত কাজ)</option>
+                            <option value="media_recorder" selected>🌐 ব্রাউজার রেকর্ডার</option>
                             <option value="hardware_mic">💻 পিসি সরাসরি মাইক (USB)</option>
                             <option value="web_speech">⚡ লাইভ ক্রোম স্পিচ</option>
                         </select>
-                        <label for="lang-select" style="margin-left: 6px;">ভাষা:</label>
+                        <label for="lang-select">ভাষা:</label>
                         <select id="lang-select">
                             <option value="bn-BD" selected>বাংলা (BD)</option>
                             <option value="en-US">English (US)</option>
                         </select>
+                        <label for="voice-select">🎙️ ভয়েস:</label>
+                        <select id="voice-select" style="background:#0b111e;color:#00d2ff;border:1px solid #00d2ff;border-radius:6px;padding:4px 8px;font-weight:bold;">
+                            <option value="09ff9493-419d-45fc-937d-411115824bfc" selected>✨ My Zentic (আপনার ভয়েস)</option>
+                            <option value="2ba861ea-7cdc-43d1-8608-4045b5a41de5">🎙️ Rubel (স্বাভাবিক পুরুষ কণ্ঠ)</option>
+                            <option value="ddf9ec71-3337-4a8a-a318-9a42f72433e2">🎙️ Rupam (গম্ভীর পুরুষ কণ্ঠ)</option>
+                            <option value="314be1d2-3d14-468d-be40-08a1af7df49d">🎙️ Kian (স্মুথ ন্যারেটর)</option>
+                            <option value="bn-IN-BashkarNeural">🎙️ Bashkar (Microsoft Neural)</option>
+                        </select>
+                        <button type="button" id="btn-test-voice" style="background:rgba(0,210,255,0.2);border:1px solid #00d2ff;color:#00d2ff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:bold;">🔊 শুনুন</button>
                     </div>
                 </div>
 

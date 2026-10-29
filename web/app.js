@@ -22,6 +22,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas          = document.getElementById('audio-wave-canvas');
     const ctx             = canvas.getContext('2d');
     const chkAutoListen   = document.getElementById('chk-auto-listen');
+    const voiceSelect     = document.getElementById('voice-select');
+    const btnTestVoice    = document.getElementById('btn-test-voice');
+
+    if (voiceSelect) {
+        const savedVoice = localStorage.getItem('jarvis_voice');
+        if (savedVoice) voiceSelect.value = savedVoice;
+        voiceSelect.addEventListener('change', () => {
+            localStorage.setItem('jarvis_voice', voiceSelect.value);
+            addLog('SYSTEM', 'ভয়েস পরিবর্তন করা হয়েছে: ' + voiceSelect.options[voiceSelect.selectedIndex].text);
+        });
+    }
+
+    if (btnTestVoice) {
+        btnTestVoice.addEventListener('click', () => {
+            const sampleText = 'হ্যাঁ স্যার, আমি জারভিস। এই কণ্ঠে আপনার সাথে কথা বলছি।';
+            jarvisOutput.textContent = sampleText;
+            playBengaliAudio(sampleText);
+            addLog('JARVIS', sampleText);
+        });
+    }
 
     let isListening         = false;
     let animFrameId         = null;
@@ -492,7 +512,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeAudio.pause();
                 activeAudio = null;
             }
-            const audioUrl = '/api/tts?text=' + encodeURIComponent(text) + '&t=' + Date.now();
+            const chosenVoice = voiceSelect ? voiceSelect.value : '09ff9493-419d-45fc-937d-411115824bfc';
+            const audioUrl = '/api/tts?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(chosenVoice) + '&t=' + Date.now();
             activeAudio = new Audio(audioUrl);
             activeAudio.volume = 1.0;
             const playPromise = activeAudio.play();
