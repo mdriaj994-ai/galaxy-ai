@@ -107,17 +107,17 @@ class UniversalAgent:
         # ── Calculator ──
         if target_lower in ["calc", "calc.exe", "calculator"]:
             try:
-                os.startfile("calc:")
-                return
-            except Exception:
-                pass
-            try:
-                subprocess.Popen("start calc:", shell=True)
+                subprocess.Popen([r"C:\Windows\System32\calc.exe"])
                 return
             except Exception:
                 pass
             try:
                 subprocess.Popen(["calc.exe"])
+                return
+            except Exception:
+                pass
+            try:
+                subprocess.Popen("start calc.exe", shell=True)
                 return
             except Exception:
                 pass
@@ -232,21 +232,7 @@ class UniversalAgent:
             pass
 
     def _open_url(self, url: str):
-        # 1. Windows ShellExecute via os.startfile (সবচেয়ে নির্ভরযোগ্য)
-        try:
-            os.startfile(url)
-            return
-        except Exception:
-            pass
-
-        # 2. Windows shell start
-        try:
-            subprocess.Popen(f'start "" "{url}"', shell=True)
-            return
-        except Exception:
-            pass
-
-        # 3. Chrome / Edge সরাসরি কল
+        # 1. Chrome সরাসরি কল (উইন্ডো অবিলম্বে ফোকাস ও সামনে আনবে)
         chrome_paths = [
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
@@ -261,6 +247,20 @@ class UniversalAgent:
                     return
                 except Exception:
                     pass
+
+        # 2. Windows shell start
+        try:
+            subprocess.Popen(f'start "" "{url}"', shell=True)
+            return
+        except Exception:
+            pass
+
+        # 3. Windows ShellExecute via os.startfile
+        try:
+            os.startfile(url)
+            return
+        except Exception:
+            pass
 
         try:
             webbrowser.open(url)
@@ -668,6 +668,39 @@ class UniversalAgent:
             self._start_process("notepad")
             return {"success": True, "action": "open_app",
                     "reply": "নোটপ্যাড চালু হচ্ছে।", "details": "Opened Notepad"}
+
+        # ────── ডিস্ক স্পেস / ড্রাইভের ফাঁকা জায়গা চেক ──────
+        is_space_query = any(w in low for w in ["ফাঁকা", "স্পেস", "space", "size", "সাইজ", "কত জিবি", "কতটুকু", "পার্সেন্ট", "শতাংশ", "ফ্রি", "free"])
+        is_drive_mention = any(w in low for w in ["ড্রাইভ", "drive", "সি ড্রাইভ", "c drive", "ডি ড্রাইভ", "d drive", "ডিস্ক", "মেমোরি"])
+        if is_space_query or (is_drive_mention and any(w in low for w in ["কত", "দেখো", "বলো", "চেক"])):
+            try:
+                import shutil
+                drive = "C:\\"
+                drive_name = "সি"
+                if "ডি ড্রাইভ" in low or "d drive" in low or " d:" in low or "d ড্রাইভ" in low:
+                    drive = "D:\\"
+                    drive_name = "ডি"
+                elif "ই ড্রাইভ" in low or "e drive" in low or " e:" in low or "e ড্রাইভ" in low:
+                    drive = "E:\\"
+                    drive_name = "ই"
+
+                total, used, free = shutil.disk_usage(drive)
+                total_gb = round(total / (1024**3), 1)
+                free_gb = round(free / (1024**3), 1)
+                used_gb = round(used / (1024**3), 1)
+                percent_free = round((free / total) * 100, 1)
+
+                try:
+                    subprocess.Popen(["explorer.exe", drive])
+                except Exception:
+                    pass
+
+                reply = f"আপনার কম্পিউটারের {drive_name} ড্রাইভ খোলা হয়েছে। মোট {total_gb} জিবির মধ্যে {free_gb} জিবি অর্থাৎ প্রায় {percent_free} শতাংশ ফাঁকা আছে।"
+                return {"success": True, "action": "disk_space",
+                        "reply": reply,
+                        "details": f"{drive} Free: {free_gb}GB / {total_gb}GB ({percent_free}%)"}
+            except Exception:
+                pass
 
         # ────── ফাইল এক্সপ্লোরার ──────
         fe_bn = ["ফাইল এক্সপ্লোরার", "মাই কম্পিউটার", "ফাইল ম্যানেজার", "এক্সপ্লোরার", "দিস পিসি", "দিসপিসি", "কম্পিউটার খোলো", "ফাইল খোলো", "ফাইল দেখাও", "ফোল্ডার খোলো"]
