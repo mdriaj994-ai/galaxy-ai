@@ -224,9 +224,9 @@ def api_tts():
         if req_voice:
             voice = req_voice
         elif ascii_ratio > 0.8:
-            voice = getattr(settings, 'EDGE_TTS_VOICE_EN', 'en-US-ChristopherNeural')
+            voice = 'en-US-ChristopherNeural'
         else:
-            voice = getattr(settings, 'EDGE_TTS_VOICE_MALE', 'bn-IN-BashkarNeural')
+            voice = 'bn-IN-BashkarNeural'  # অতি বাস্তবসম্মত গম্ভীর বাংলা পুরুষ কণ্ঠ
 
         async def _gen():
             comm = edge_tts.Communicate(clean_text, voice, rate=rate, pitch=pitch)

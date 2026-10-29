@@ -79,12 +79,12 @@ class SpeechEngine:
             if ascii_ratio > 0.8:
                 voice = getattr(self.settings, 'EDGE_TTS_VOICE_EN', 'en-US-ChristopherNeural')
             else:
-                voice = getattr(self.settings, 'EDGE_TTS_VOICE_MALE', 'bn-IN-BashkarNeural')
+                voice = 'bn-IN-BashkarNeural'  # সবচেয়ে বাস্তবসম্মত বাংলা পুরুষ কণ্ঠ (hardcoded)
 
             async def _gen():
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp:
                     tmp_p = tmp.name
-                comm = edge_tts.Communicate(text, voice, rate='+0%', pitch='+0Hz')
+                comm = edge_tts.Communicate(text, voice, rate='+5%', pitch='+0Hz')
                 await comm.save(tmp_p)
                 return tmp_p
 
