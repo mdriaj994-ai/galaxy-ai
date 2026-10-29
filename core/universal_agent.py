@@ -345,13 +345,27 @@ class UniversalAgent:
 
         # ────── ইউটিউব ──────
         yt_bn = ["ইউটিউব", "ইউটিউবে", "ইউটিউব এ", "গান বাজাও", "গান চালাও", "মিউজিক চালাও"]
-        yt_en = ["youtube", "yt ", "play song", "play music", "play video"]
-        if any(w in low for w in yt_bn + yt_en):
+        yt_en = ["youtube", "yt", "play song", "play music", "play video"]
+        is_yt = any(w in low for w in yt_bn) or any(w == low or low.startswith(w + " ") or f" {w} " in f" {low} " for w in yt_en)
+        if is_yt:
+            # যদি শুধুই ওপেন করার অনুরোধ হয়
+            pure_open = ["খোলো", "খুলো", "খোল", "ওপেন করো", "ওপেন কর", "চালু করো", "চালু কর", "দেখাও", "যাও", "ঢোকো", "ঢোক", "open", "launch", "kholo", "chalu koro"]
+            is_just_open = any(op in low for op in pure_open) and not any(w in low for w in ["সার্চ", "গান", "বাজাও", "চালাও", "search", "play"])
+            if is_just_open or low in ["youtube", "yt", "ইউটিউব"]:
+                url = "https://www.youtube.com"
+                self._open_url(url)
+                return {"success": True, "action": "open_website",
+                        "reply": "ইউটিউব খোলা হচ্ছে।",
+                        "url": url,
+                        "details": "Opened YouTube"}
+
             query = raw
             stops = [
                 "ইউটিউব এ গিয়ে", "ইউটিউবে গিয়ে", "ইউটিউবে গিয়া", "ইউটিউব এ গিয়া",
                 "ইউটিউবে", "ইউটিউব এ", "ইউটিউব", "youtube", "yt",
                 "গিয়ে", "গিয়া", "সার্চ করো", "সার্চ কর", "সার্চ করুন",
+                "খোলো", "খুলো", "খোল", "ওপেন করো", "ওপেন কর", "চালু করো", "চালু কর",
+                "open", "launch", "kholo",
                 "বাজাও", "চালাও", "চালাও দেও",
                 "search", "play", "video"
             ]
@@ -359,7 +373,13 @@ class UniversalAgent:
                 query = query.replace(s, "")
             query = query.strip()
             if not query:
-                query = "popular bangla song"
+                url = "https://www.youtube.com"
+                self._open_url(url)
+                return {"success": True, "action": "open_website",
+                        "reply": "ইউটিউব খোলা হচ্ছে।",
+                        "url": url,
+                        "details": "Opened YouTube"}
+
             url = f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query)}"
             self._open_url(url)
             return {"success": True, "action": "youtube",
@@ -590,6 +610,7 @@ class UniversalAgent:
         web_map = {
             "ফেসবুক": "https://facebook.com",
             "facebook": "https://facebook.com",
+            "fb": "https://facebook.com",
             "ইনস্টাগ্রাম": "https://instagram.com",
             "instagram": "https://instagram.com",
             "টুইটার": "https://twitter.com",
@@ -649,8 +670,8 @@ class UniversalAgent:
                     "reply": "নোটপ্যাড চালু হচ্ছে।", "details": "Opened Notepad"}
 
         # ────── ফাইল এক্সপ্লোরার ──────
-        fe_bn = ["ফাইল এক্সপ্লোরার", "মাই কম্পিউটার", "ফাইল ম্যানেজার", "এক্সপ্লোরার"]
-        fe_en = ["file explorer", "my computer", "explorer", "file manager"]
+        fe_bn = ["ফাইল এক্সপ্লোরার", "মাই কম্পিউটার", "ফাইল ম্যানেজার", "এক্সপ্লোরার", "দিস পিসি", "দিসপিসি", "কম্পিউটার খোলো", "ফাইল খোলো", "ফাইল দেখাও", "ফোল্ডার খোলো"]
+        fe_en = ["file explorer", "my computer", "explorer", "file manager", "this pc", "open files"]
         if any(w in low for w in fe_bn + fe_en):
             self._start_process("explorer")
             return {"success": True, "action": "open_app",
