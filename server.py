@@ -200,10 +200,14 @@ def voice_upload():
 @app.route("/api/tts")
 def api_tts():
     """
-    Microsoft Edge Neural Speech (PradeepNeural) দিয়ে বাস্তবসম্মত পুরুষ কণ্ঠের
-    হাই-কোয়ালিটি MP3 অডিও তৈরি করে। এটি মোবাইল ও ব্রাউজারে পরিষ্কার শোনাবে।
+    Microsoft Edge Neural Speech দিয়ে অতি বাস্তবসম্মত মানুষের মতো কণ্ঠে কথা বলা।
+    ডিফল্ট: bn-IN-BashkarNeural (বাস্তবসম্মত গম্ভীর ও সাবলীল পুরুষ কণ্ঠ)
     """
     text = request.args.get("text", "").strip()
+    req_voice = request.args.get("voice", "").strip()
+    rate = request.args.get("rate", "+0%").strip()
+    pitch = request.args.get("pitch", "+0Hz").strip()
+
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
@@ -217,10 +221,15 @@ def api_tts():
             clean_text = text
 
         ascii_ratio = sum(1 for c in clean_text if ord(c) < 128) / max(len(clean_text), 1)
-        voice = getattr(settings, 'EDGE_TTS_VOICE_EN', 'en-US-ChristopherNeural') if ascii_ratio > 0.8 else getattr(settings, 'EDGE_TTS_VOICE_MALE', 'bn-BD-PradeepNeural')
+        if req_voice:
+            voice = req_voice
+        elif ascii_ratio > 0.8:
+            voice = getattr(settings, 'EDGE_TTS_VOICE_EN', 'en-US-ChristopherNeural')
+        else:
+            voice = getattr(settings, 'EDGE_TTS_VOICE_MALE', 'bn-IN-BashkarNeural')
 
         async def _gen():
-            comm = edge_tts.Communicate(clean_text, voice)
+            comm = edge_tts.Communicate(clean_text, voice, rate=rate, pitch=pitch)
             data = b""
             async for chunk in comm.stream():
                 if chunk["type"] == "audio":

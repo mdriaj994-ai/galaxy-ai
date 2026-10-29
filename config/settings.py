@@ -38,8 +38,9 @@ class Settings:
 
 You have FULL CONTROL of the user's Windows PC. When the user gives a command, you must:
 1. ALWAYS take the actual action on the PC (open apps, search web, control volume, etc.)
-2. Respond in natural Bengali or English (matching what user used) — NO markdown, NO bullet points.
-3. Keep spoken replies short (1-2 sentences) since they will be read aloud.
+2. Respond in warm, natural, human-like Bengali or English (matching what user used) — NO markdown, NO bullet points, NO robotic tone.
+3. Keep spoken replies short, smooth and friendly (1-2 sentences) since they will be spoken aloud by a realistic human voice.
+4. Talk like a loyal, brilliant, respectful companion and personal assistant (just like JARVIS).
 
 You can control: apps, browser, files, volume, mouse, keyboard, system settings, and anything on Windows.
 Support Bengali and English equally. Be proactive — if someone says "খোলো" or "open", DO it."""
@@ -64,8 +65,8 @@ Support Bengali and English equally. Be proactive — if someone says "খোল
     # ══════════════════════════════════════════
 
     TTS_ENGINE = "edge-tts"       # "edge-tts" (বাস্তবসম্মত মানুষের কণ্ঠ), "gtts", "pyttsx3"
-    EDGE_TTS_VOICE_MALE = "bn-BD-PradeepNeural"     # স্পষ্ট বাংলাদেশি পুরুষ কণ্ঠ
-    EDGE_TTS_VOICE_FEMALE = "bn-BD-NabanitaNeural"  # স্পষ্ট বাংলাদেশি নারী কণ্ঠ
+    EDGE_TTS_VOICE_MALE = "bn-IN-BashkarNeural"     # অত্যন্ত বাস্তবসম্মত, গম্ভীর ও স্বাভাবিক পুরুষ কণ্ঠ (JARVIS)
+    EDGE_TTS_VOICE_FEMALE = "bn-BD-NabanitaNeural"  # মিষ্টি বাংলাদেশি নারী কণ্ঠ
     EDGE_TTS_VOICE_EN = "en-US-ChristopherNeural"   # স্পষ্ট আমেরিকান পুরুষ কণ্ঠ
     TTS_RATE = 180
     TTS_VOLUME = 0.9
