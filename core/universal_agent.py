@@ -232,30 +232,46 @@ class UniversalAgent:
             pass
 
     def _open_url(self, url: str):
-        # 1. Chrome সরাসরি কল (উইন্ডো অবিলম্বে ফোকাস ও সামনে আনবে)
+        # 1. Chrome নতুন উইন্ডোতে সরাসরি সামনে আনা
         chrome_paths = [
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
             os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
         ]
         for cp in chrome_paths:
             if os.path.exists(cp):
+                try:
+                    subprocess.Popen([cp, "--new-window", url])
+                    return
+                except Exception:
+                    pass
                 try:
                     subprocess.Popen([cp, url])
                     return
                 except Exception:
                     pass
 
-        # 2. Windows shell start
+        # 2. Edge ব্রাউজার
+        edge_paths = [
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+        ]
+        for ep in edge_paths:
+            if os.path.exists(ep):
+                try:
+                    subprocess.Popen([ep, "--new-window", url])
+                    return
+                except Exception:
+                    pass
+
+        # 3. Windows shell start
         try:
             subprocess.Popen(f'start "" "{url}"', shell=True)
             return
         except Exception:
             pass
 
-        # 3. Windows ShellExecute via os.startfile
+        # 4. Windows ShellExecute via os.startfile
         try:
             os.startfile(url)
             return
@@ -629,6 +645,29 @@ class UniversalAgent:
             "চ্যাটজিপিটি": "https://chat.openai.com",
             "chatgpt": "https://chat.openai.com",
         }
+        # ────── পুনরায় খোলার নির্দেশ / "খোলে নাই" হ্যান্ডলিং ──────
+        retry_bn = ["খোলে নাই", "খোলেনি", "ওপেন হয় নাই", "ওপেন হয় নাই", "ওপেন করে নাই", "চালু হয় নাই", "চালু হয় নাই", "আসে নাই"]
+        if any(r in low for r in retry_bn):
+            for site_key, site_url in web_map.items():
+                if site_key in low:
+                    self._open_url(site_url)
+                    return {"success": True, "action": "open_website",
+                            "reply": f"দুঃখিত স্যার, এবার সরাসরি আপনার সামনে নতুন উইন্ডোতে {site_key} ওপেন করে দেওয়া হয়েছে।",
+                            "url": site_url,
+                            "details": f"Forced open {site_url}"}
+            for app_key in ["ক্যালকুলেটর", "calculator", "calc"]:
+                if app_key in low:
+                    self._start_process("calc")
+                    return {"success": True, "action": "open_app",
+                            "reply": "দুঃখিত স্যার, এবার ক্যালকুলেটর সরাসরি আপনার সামনে ওপেন করা হয়েছে।",
+                            "details": "Forced open calc.exe"}
+            for exp_key in ["ফাইল", "এক্সপ্লোরার", "file"]:
+                if exp_key in low:
+                    self._start_process("explorer")
+                    return {"success": True, "action": "open_app",
+                            "reply": "দুঃখিত স্যার, ফাইল এক্সপ্লোরার সরাসরি সামনে ওপেন করা হয়েছে।",
+                            "details": "Forced open explorer.exe"}
+
         open_bn = ["খোলো", "খুলো", "খোল", "ওপেন করো", "ওপেন কর", "চালু করো", "চালু কর", "দেখাও", "যাও", "ঢোকো", "ঢোক"]
         open_en = ["open", "go to", "launch", "show", "kholo", "chalu koro", "visit"]
         is_question = any(q in low for q in ["কে", "কি", "কী", "কবে", "কত", "কেন", "কার", "কোথায়", "who", "when", "how", "what", "why"])
