@@ -70,25 +70,6 @@ def get_status():
     })
 
 
-@app.route("/api/tts", methods=["GET"])
-def tts_stream():
-    """রিয়েলটাইম বাংলা অডিও তৈরি করে ব্রাউজারে শোনায় (gTTS)।"""
-    text = request.args.get("text", "").strip()
-    if not text:
-        return "No text", 400
-    try:
-        from gtts import gTTS
-        import io
-        from flask import send_file
-        fp = io.BytesIO()
-        tts = gTTS(text=text, lang="bn", slow=False)
-        tts.write_to_fp(fp)
-        fp.seek(0)
-        return send_file(fp, mimetype="audio/mpeg")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/api/command", methods=["POST"])
 def execute_command():
     """
@@ -209,6 +190,8 @@ def api_tts():
     rate = request.args.get("rate", "+0%").strip()
     pitch = request.args.get("pitch", "+0Hz").strip()
 
+    print(f"\n\033[93m[API TTS Request]:\033[0m text='{text}', req_voice='{req_voice}'", flush=True)
+
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
@@ -224,6 +207,7 @@ def api_tts():
     cartesia_model = getattr(settings, 'CARTESIA_MODEL', 'sonic-3.6')
 
     is_edge_voice = req_voice and (req_voice.startswith("bn-") or req_voice.startswith("en-") or req_voice == "edge-tts")
+    print(f"[*] cartesia_key present: {bool(cartesia_key)}, is_edge_voice: {is_edge_voice}, cartesia_voice_id: {cartesia_voice_id}", flush=True)
     if cartesia_key and not is_edge_voice:
         try:
             import requests
@@ -231,6 +215,7 @@ def api_tts():
             ascii_ratio = sum(1 for c in clean_text if ord(c) < 128) / max(len(clean_text), 1)
             lang = "en" if ascii_ratio > 0.8 else "bn"
 
+            print(f"[*] Calling Cartesia with voice='{cartesia_voice_id}' lang='{lang}'...", flush=True)
             c_resp = requests.post(
                 'https://api.cartesia.ai/tts/bytes',
                 headers={
@@ -247,6 +232,7 @@ def api_tts():
                 },
                 timeout=10
             )
+            print(f"[*] Cartesia status: {c_resp.status_code}, length: {len(c_resp.content)}", flush=True)
             if c_resp.status_code == 200 and len(c_resp.content) > 1000:
                 resp = send_file(
                     io.BytesIO(c_resp.content),
@@ -257,7 +243,7 @@ def api_tts():
                 resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
                 resp.headers["Pragma"] = "no-cache"
                 resp.headers["Expires"] = "0"
-                resp.headers["X-TTS-Engine"] = "Cartesia"
+                resp.headers["X-TTS-Engine"] = f"Cartesia-{cartesia_voice_id[:8]}"
                 return resp
             else:
                 print(f"[Cartesia TTS Warning]: Status {c_resp.status_code}, falling back to Edge TTS", flush=True)
@@ -271,7 +257,7 @@ def api_tts():
         import edge_tts
 
         ascii_ratio = sum(1 for c in clean_text if ord(c) < 128) / max(len(clean_text), 1)
-        if req_voice and req_voice not in ["cartesia", "edge-tts"]:
+        if req_voice and (req_voice.startswith("bn-") or req_voice.startswith("en-")):
             voice = req_voice
         elif ascii_ratio > 0.8:
             voice = 'en-US-ChristopherNeural'
