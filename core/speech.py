@@ -41,7 +41,9 @@ class SpeechEngine:
 
     def _init_tts(self):
         """TTS ইঞ্জিন শুরু করো।"""
-        if self.settings.TTS_ENGINE == "edge-tts":
+        if self.settings.TTS_ENGINE == "cartesia":
+            print("\033[92m  [✓] Cartesia AI Voice Engine সক্রিয় (My Zentic Voice)\033[0m")
+        elif self.settings.TTS_ENGINE == "edge-tts":
             try:
                 import edge_tts
                 import pygame
@@ -59,12 +61,69 @@ class SpeechEngine:
             return
         text = self._clean_text(text)
         with self._tts_lock:
-            if self.settings.TTS_ENGINE == "edge-tts":
+            if self.settings.TTS_ENGINE == "cartesia":
+                self._speak_cartesia(text)
+            elif self.settings.TTS_ENGINE == "edge-tts":
                 self._speak_edge_tts(text)
             elif self.settings.TTS_ENGINE == "pyttsx3" and self.tts_engine:
                 self._speak_pyttsx3(text)
             elif self.settings.TTS_ENGINE == "gtts":
                 self._speak_gtts(text)
+
+    def _speak_cartesia(self, text: str):
+        """Cartesia AI Ultra-realistic Voice দিয়ে সরাসরি মানুষের মতো কণ্ঠে কথা বলা।"""
+        try:
+            import requests
+            import pygame
+            import tempfile
+
+            api_key = getattr(self.settings, 'CARTESIA_API_KEY', '') or os.getenv('CARTESIA_API_KEY', '')
+            voice_id = getattr(self.settings, 'CARTESIA_VOICE_ID', '') or os.getenv('CARTESIA_VOICE_ID', '09ff9493-419d-45fc-937d-411115824bfc')
+            model_id = getattr(self.settings, 'CARTESIA_MODEL', 'sonic-3.6')
+
+            if not api_key:
+                self._speak_edge_tts(text)
+                return
+
+            resp = requests.post(
+                'https://api.cartesia.ai/tts/bytes',
+                headers={
+                    'Cartesia-Version': '2024-06-10',
+                    'X-API-Key': api_key,
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model_id': model_id,
+                    'transcript': text,
+                    'voice': {'mode': 'id', 'id': voice_id},
+                    'output_format': {'container': 'mp3', 'encoding': 'mp3', 'sample_rate': 44100},
+                    'language': 'bn'
+                },
+                timeout=12
+            )
+
+            if resp.status_code == 200:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp:
+                    tmp_p = tmp.name
+                    tmp.write(resp.content)
+
+                if not pygame.mixer.get_init():
+                    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
+                pygame.mixer.music.load(tmp_p)
+                pygame.mixer.music.play()
+                while pygame.mixer.music.get_busy():
+                    time.sleep(0.05)
+                pygame.mixer.music.stop()
+                try:
+                    os.unlink(tmp_p)
+                except Exception:
+                    pass
+            else:
+                print(f"[Cartesia Error {resp.status_code}, falling back to Edge TTS]: {resp.text[:100]}", flush=True)
+                self._speak_edge_tts(text)
+        except Exception as e:
+            print(f"[Cartesia Exception, falling back to Edge TTS]: {e}", flush=True)
+            self._speak_edge_tts(text)
 
     def _speak_edge_tts(self, text: str):
         """Microsoft Edge Neural Voice দিয়ে বাস্তবসম্মত পুরুষ কণ্ঠে স্পষ্ট বাংলায় কথা বলো।"""

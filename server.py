@@ -200,8 +200,9 @@ def voice_upload():
 @app.route("/api/tts")
 def api_tts():
     """
-    Microsoft Edge Neural Speech দিয়ে অতি বাস্তবসম্মত মানুষের মতো কণ্ঠে কথা বলা।
-    ডিফল্ট: bn-IN-BashkarNeural (বাস্তবসম্মত গম্ভীর ও সাবলীল পুরুষ কণ্ঠ)
+    Cartesia AI Ultra-realistic Neural Speech দিয়ে বাস্তব মানুষের কণ্ঠে কথা বলা।
+    ডিফল্ট: Cartesia Voice ID: 09ff9493-419d-45fc-937d-411115824bfc (My Zentic Voice)
+    ব্যাকআপ: Microsoft Edge Neural TTS
     """
     text = request.args.get("text", "").strip()
     req_voice = request.args.get("voice", "").strip()
@@ -211,22 +212,68 @@ def api_tts():
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
+    clean_text = speech_engine._clean_text(text) if speech_engine else text
+    if not clean_text:
+        clean_text = text
+
+    # 1. Cartesia AI Voice চেষ্টা করো
+    cartesia_key = getattr(settings, 'CARTESIA_API_KEY', '') or os.getenv('CARTESIA_API_KEY', '')
+    cartesia_voice_id = getattr(settings, 'CARTESIA_VOICE_ID', '09ff9493-419d-45fc-937d-411115824bfc') or os.getenv('CARTESIA_VOICE_ID', '09ff9493-419d-45fc-937d-411115824bfc')
+    cartesia_model = getattr(settings, 'CARTESIA_MODEL', 'sonic-3.6')
+
+    if cartesia_key and req_voice != "edge-tts":
+        try:
+            import requests
+            import io
+            ascii_ratio = sum(1 for c in clean_text if ord(c) < 128) / max(len(clean_text), 1)
+            lang = "en" if ascii_ratio > 0.8 else "bn"
+
+            c_resp = requests.post(
+                'https://api.cartesia.ai/tts/bytes',
+                headers={
+                    'Cartesia-Version': '2024-06-10',
+                    'X-API-Key': cartesia_key,
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model_id': cartesia_model,
+                    'transcript': clean_text,
+                    'voice': {'mode': 'id', 'id': cartesia_voice_id},
+                    'output_format': {'container': 'mp3', 'encoding': 'mp3', 'sample_rate': 44100},
+                    'language': lang
+                },
+                timeout=10
+            )
+            if c_resp.status_code == 200 and len(c_resp.content) > 1000:
+                resp = send_file(
+                    io.BytesIO(c_resp.content),
+                    mimetype="audio/mpeg",
+                    as_attachment=False,
+                    download_name="reply.mp3"
+                )
+                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                resp.headers["Pragma"] = "no-cache"
+                resp.headers["Expires"] = "0"
+                resp.headers["X-TTS-Engine"] = "Cartesia"
+                return resp
+            else:
+                print(f"[Cartesia TTS Warning]: Status {c_resp.status_code}, falling back to Edge TTS", flush=True)
+        except Exception as ce:
+            print(f"[Cartesia TTS Error]: {ce}, falling back to Edge TTS", flush=True)
+
+    # 2. ফলব্যাক: Microsoft Edge Neural TTS
     try:
         import io
         import asyncio
         import edge_tts
 
-        clean_text = speech_engine._clean_text(text)
-        if not clean_text:
-            clean_text = text
-
         ascii_ratio = sum(1 for c in clean_text if ord(c) < 128) / max(len(clean_text), 1)
-        if req_voice:
+        if req_voice and req_voice not in ["cartesia", "edge-tts"]:
             voice = req_voice
         elif ascii_ratio > 0.8:
             voice = 'en-US-ChristopherNeural'
         else:
-            voice = 'bn-IN-BashkarNeural'  # অতি বাস্তবসম্মত গম্ভীর বাংলা পুরুষ কণ্ঠ
+            voice = 'bn-IN-BashkarNeural'
 
         async def _gen():
             comm = edge_tts.Communicate(clean_text, voice, rate=rate, pitch=pitch)
@@ -246,6 +293,7 @@ def api_tts():
         resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Expires"] = "0"
+        resp.headers["X-TTS-Engine"] = "Edge-TTS"
         return resp
     except Exception as e:
         print(f"[API TTS Error]: {e}", flush=True)

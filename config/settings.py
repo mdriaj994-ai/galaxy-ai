@@ -24,6 +24,9 @@ class Settings:
 
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    CARTESIA_API_KEY = os.getenv("CARTESIA_API_KEY", "sk_car_kGpgUqX3GuK4q72MNdoyzb")
+    CARTESIA_VOICE_ID = os.getenv("CARTESIA_VOICE_ID", "09ff9493-419d-45fc-937d-411115824bfc")
+    CARTESIA_MODEL = os.getenv("CARTESIA_MODEL", "sonic-3.6")
 
     # ══════════════════════════════════════════
     # 🤖 AI মডেল সেটিংস
@@ -64,7 +67,7 @@ Support Bengali and English equally. Be proactive — if someone says "খোল
     # 🔊 ভয়েস আউটপুট সেটিংস (TTS)
     # ══════════════════════════════════════════
 
-    TTS_ENGINE = "edge-tts"       # "edge-tts" (বাস্তবসম্মত মানুষের কণ্ঠ), "gtts", "pyttsx3"
+    TTS_ENGINE = "cartesia"       # "cartesia" (সর্বোচ্চ বাস্তবসম্মত এআই ভয়েস), "edge-tts", "gtts"
     EDGE_TTS_VOICE_MALE = "bn-IN-BashkarNeural"     # অত্যন্ত বাস্তবসম্মত, গম্ভীর ও স্বাভাবিক পুরুষ কণ্ঠ (JARVIS)
     EDGE_TTS_VOICE_FEMALE = "bn-BD-NabanitaNeural"  # মিষ্টি বাংলাদেশি নারী কণ্ঠ
     EDGE_TTS_VOICE_EN = "en-US-ChristopherNeural"   # স্পষ্ট আমেরিকান পুরুষ কণ্ঠ
